@@ -1,0 +1,174 @@
+{
+  "contract_version": "1.0",
+  "rules": [
+    "x@y with a dot in y (gmail.com) is an email; x@y with NO dot (okaxis, ybl, paytm, upi) is a upi_id",
+    "a UPI ID like 919876543210@upi is ONLY a upi_id, do not also emit the digits as a phone",
+    "times (9.30pm), amounts (4999, 25 lakh) and case numbers (4471) are NOT entities",
+    "values must equal contracts/normalize.py output; raw must be a substring of text"
+  ],
+  "cases": [
+    {
+      "id": "x01",
+      "text": "Dear customer your SBI KYC expired. Update now at https://sbi-kyc-update.in/verify?id=88 or account will be blocked today.",
+      "expected_entities": [
+        {
+          "type": "url",
+          "value": "sbi-kyc-update.in/verify",
+          "raw": "https://sbi-kyc-update.in/verify?id=88"
+        }
+      ],
+      "expected_scam_type": "kyc_update"
+    },
+    {
+      "id": "x02",
+      "text": "Sir refund of Rs 4999 approved. Accept the collect request from refund.desk@okaxis to receive amount",
+      "expected_entities": [
+        {
+          "type": "upi_id",
+          "value": "refund.desk@okaxis",
+          "raw": "refund.desk@okaxis"
+        }
+      ],
+      "expected_scam_type": "refund_collect"
+    },
+    {
+      "id": "x03",
+      "text": "Call our helpline +91-98765 43210 immediately, else FIR will be filed. This is Mumbai Cyber Police.",
+      "expected_entities": [
+        {
+          "type": "phone",
+          "value": "+919876543210",
+          "raw": "+91-98765 43210"
+        }
+      ],
+      "expected_scam_type": "digital_arrest"
+    },
+    {
+      "id": "x04",
+      "text": "Part time job! Like YouTube videos earn 3000/day. Whatsapp 9123456780. Deposit 500 first to rahul.task@ybl",
+      "expected_entities": [
+        {
+          "type": "phone",
+          "value": "+919123456780",
+          "raw": "9123456780"
+        },
+        {
+          "type": "upi_id",
+          "value": "rahul.task@ybl",
+          "raw": "rahul.task@ybl"
+        }
+      ],
+      "expected_scam_type": "job_task"
+    },
+    {
+      "id": "x05",
+      "text": "Congratulations! You won KBC lottery 25 lakh. Pay GST 12500 to A/c 50100234567812 IFSC HDFC0001234. Mail docs to kbc.winner.desk@gmail.com",
+      "expected_entities": [
+        {
+          "type": "bank_account",
+          "value": "50100234567812",
+          "raw": "50100234567812"
+        },
+        {
+          "type": "ifsc",
+          "value": "HDFC0001234",
+          "raw": "HDFC0001234"
+        },
+        {
+          "type": "email",
+          "value": "kbc.winner.desk@gmail.com",
+          "raw": "kbc.winner.desk@gmail.com"
+        }
+      ],
+      "expected_scam_type": "lottery_prize"
+    },
+    {
+      "id": "x06",
+      "text": "Bhai double return guaranteed, send USDT to 0x9F2c4A1b7E3d5C8a6B0f1E2d3C4b5A6978e1D2c3 aur 2 ghante mein double",
+      "expected_entities": [
+        {
+          "type": "crypto_wallet",
+          "value": "0x9f2c4a1b7e3d5c8a6b0f1e2d3c4b5a6978e1d2c3",
+          "raw": "0x9F2c4A1b7E3d5C8a6B0f1E2d3C4b5A6978e1D2c3"
+        }
+      ],
+      "expected_scam_type": "investment"
+    },
+    {
+      "id": "x07",
+      "text": "Instant loan approved ₹50,000! Pay processing fee ₹999 to quick​loan@paytm and download app from www.QuickLoan-Pro.app/apk/",
+      "expected_entities": [
+        {
+          "type": "upi_id",
+          "value": "quickloan@paytm",
+          "raw": "quick​loan@paytm"
+        },
+        {
+          "type": "url",
+          "value": "quickloan-pro.app/apk",
+          "raw": "www.QuickLoan-Pro.app/apk/"
+        }
+      ],
+      "expected_scam_type": "loan_app"
+    },
+    {
+      "id": "x08",
+      "text": "உங்கள் வங்கி கணக்கு முடக்கப்படும். KYC புதுப்பிக்க 08765432109 அழைக்கவும்",
+      "expected_entities": [
+        {
+          "type": "phone",
+          "value": "+918765432109",
+          "raw": "08765432109"
+        }
+      ],
+      "expected_scam_type": "kyc_update"
+    },
+    {
+      "id": "x09",
+      "text": "hello madam how are you",
+      "expected_entities": [],
+      "expected_scam_type": "unknown"
+    },
+    {
+      "id": "x10",
+      "text": "Send to refund.desk@okaxis again, first one failed. Or use 919876543210@upi",
+      "expected_entities": [
+        {
+          "type": "upi_id",
+          "value": "refund.desk@okaxis",
+          "raw": "refund.desk@okaxis"
+        },
+        {
+          "type": "upi_id",
+          "value": "919876543210@upi",
+          "raw": "919876543210@upi"
+        }
+      ],
+      "expected_scam_type": "refund_collect"
+    },
+    {
+      "id": "x11",
+      "text": "Customs has seized your parcel with drugs. Video call on skype, case no 4471. Contact officer at bit.ly/cbi-case4471",
+      "expected_entities": [
+        {
+          "type": "url",
+          "value": "bit.ly/cbi-case4471",
+          "raw": "bit.ly/cbi-case4471"
+        }
+      ],
+      "expected_scam_type": "digital_arrest"
+    },
+    {
+      "id": "x12",
+      "text": "Your electricity will be cut tonight 9.30pm. Contact officer 7012345678",
+      "expected_entities": [
+        {
+          "type": "phone",
+          "value": "+917012345678",
+          "raw": "7012345678"
+        }
+      ],
+      "expected_scam_type": "other"
+    }
+  ]
+}

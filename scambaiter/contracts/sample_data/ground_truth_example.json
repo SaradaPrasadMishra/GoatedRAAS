@@ -1,0 +1,36 @@
+[
+  {
+    "id": "gt_001",
+    "scam_type": "refund_collect",
+    "campaign_label": "refund_ring_A",
+    "opening": "Sir refund of Rs 4999 approved. Accept collect request from refund.desk@okaxis",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "refund.desk@okaxis"
+      },
+      {
+        "type": "phone",
+        "value": "+919876543210"
+      }
+    ],
+    "style_notes": "pushy, broken English, says 'sir' a lot, gives phone number on turn 2 or 3"
+  },
+  {
+    "id": "gt_002",
+    "scam_type": "refund_collect",
+    "campaign_label": "refund_ring_A",
+    "opening": "Amazon refund pending. Approve request from amz.refunds@ybl to get 2,499 back",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "amz.refunds@ybl"
+      },
+      {
+        "type": "phone",
+        "value": "+919876543210"
+      }
+    ],
+    "style_notes": "polite call-centre tone, shares the same support phone as gt_001"
+  }
+]

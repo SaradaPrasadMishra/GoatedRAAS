@@ -1,0 +1,17 @@
+{
+  "sessions": 3,
+  "active_sessions": 1,
+  "messages": 14,
+  "entities_total": 5,
+  "entities_by_type": {
+    "upi_id": 2,
+    "phone": 2,
+    "url": 1,
+    "bank_account": 0,
+    "ifsc": 0,
+    "email": 0,
+    "crypto_wallet": 0
+  },
+  "campaigns": 1,
+  "time_wasted_seconds": 590
+}

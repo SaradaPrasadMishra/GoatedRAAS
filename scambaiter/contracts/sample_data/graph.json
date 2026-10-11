@@ -1,0 +1,87 @@
+{
+  "nodes": [
+    {
+      "id": "s_a1b2c3d4",
+      "type": "session",
+      "label": "refund_collect · a1b2",
+      "campaign_id": "c_1"
+    },
+    {
+      "id": "s_e5f6a7b8",
+      "type": "session",
+      "label": "refund_collect · e5f6",
+      "campaign_id": "c_1"
+    },
+    {
+      "id": "s_c9d0e1f2",
+      "type": "session",
+      "label": "kyc_update · c9d0",
+      "campaign_id": null
+    },
+    {
+      "id": "upi_id:refund.desk@okaxis",
+      "type": "upi_id",
+      "label": "refund.desk@okaxis",
+      "campaign_id": "c_1"
+    },
+    {
+      "id": "phone:+919876543210",
+      "type": "phone",
+      "label": "+919876543210",
+      "campaign_id": "c_1"
+    },
+    {
+      "id": "upi_id:amz.refunds@ybl",
+      "type": "upi_id",
+      "label": "amz.refunds@ybl",
+      "campaign_id": "c_1"
+    },
+    {
+      "id": "url:sbi-kyc-update.in/verify",
+      "type": "url",
+      "label": "sbi-kyc-update.in/verify",
+      "campaign_id": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "s_a1b2c3d4",
+      "target": "upi_id:refund.desk@okaxis",
+      "type": "mentions"
+    },
+    {
+      "source": "s_a1b2c3d4",
+      "target": "phone:+919876543210",
+      "type": "mentions"
+    },
+    {
+      "source": "s_e5f6a7b8",
+      "target": "upi_id:amz.refunds@ybl",
+      "type": "mentions"
+    },
+    {
+      "source": "s_e5f6a7b8",
+      "target": "phone:+919876543210",
+      "type": "mentions"
+    },
+    {
+      "source": "s_c9d0e1f2",
+      "target": "url:sbi-kyc-update.in/verify",
+      "type": "mentions"
+    }
+  ],
+  "campaigns": [
+    {
+      "id": "c_1",
+      "session_ids": [
+        "s_a1b2c3d4",
+        "s_e5f6a7b8"
+      ],
+      "shared_entities": [
+        "phone:+919876543210"
+      ],
+      "size": 2,
+      "dominant_scam_type": "refund_collect"
+    }
+  ]
+}

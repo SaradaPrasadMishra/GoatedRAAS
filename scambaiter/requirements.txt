@@ -1,0 +1,8 @@
+# Everyone
+pydantic>=2.5
+httpx>=0.27
+# P1 backend
+fastapi>=0.110
+uvicorn>=0.29
+# P2 extractor
+networkx>=3.2
