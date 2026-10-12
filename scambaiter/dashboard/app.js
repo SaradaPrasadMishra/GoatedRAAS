@@ -37,43 +37,15 @@ const PERSONAS = {
 };
 const personaOf = (key) => PERSONAS[key] || { name: 'Decoy', who: 'Decoy' };
 
-// Red flags a victim should learn to spot. Checked on the scammer's messages only.
-const RED_FLAGS = [
-    ['Urgency', /\b(urgent|immediately|right now|today|hurry|fast|quick(ly)?|expire[sd]?|last (reminder|chance)|time is running|within \d+ ?(min|minutes|hours?))\b/i],
-    ['Asks for OTP / PIN', /\b(otp|pin|cvv|password|passcode)\b/i],
-    ['Demands payment', /\b(pay|payment|transfer|deposit|fee|charges?|send (money|rs|₹)|collect request|(accept|approve) (the )?(collect )?request|scan (the )?qr)\b|₹|\brs\.? ?\d/i],
-    ['Fake authority', /\b(rbi|police|cbi|cyber ?cell|customs|income tax|trai|court|government|ministry|bank (official|manager|head office)|kyc (team|department)|sbi|hdfc|icici|amazon|flipkart|electricity board)\b/i],
-    ['Threat', /\b(block(ed)?|suspend(ed)?|arrest|legal action|penalty|freeze|frozen|disconnect(ed)?|fir|warrant|money laundering|case (is )?(registered|filed))\b/i],
-    ['Too good to be true', /\b(won|winner|lottery|prize|reward|cashback|double|guaranteed|profit|returns?|loan (is )?approved|earn(ings)?|bonus|refund)\b/i],
-    ['Secrecy', /\b(do not (tell|inform|share with)|don'?t tell|keep (it|this) (secret|confidential)|stay on (the|this) call)\b/i],
-    ['Moves you to WhatsApp / Telegram', /\b(whatsapp|telegram|t\.me|wa\.me|signal app)\b/i],
-];
-const OTP_ASK = /\b(otp|pin|cvv|password|passcode)\b/i;
-const PAY_ASK = RED_FLAGS[2][1];
-const DIGITS4 = /\d(?:[\s-]?\d){3,}/;           // 4+ digit run: an OTP, PIN or account number
-const PAID = /\bi(?: have|'ve)? (?:sent|paid|transferred)\b/i;
+// Red flags, risk, safety record and money for the open case come from the backend
+// (report/analysis.py), so the dashboard, the report and the quick check always agree.
+let currentAnalysis = null;
+const rupees = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
-function analyse(session) {
-    const scam = session.messages.filter(m => m.role === 'scammer');
-    const bot = session.messages.filter(m => m.role === 'bot');
-    const text = scam.map(m => m.text).join('\n');
-    const flags = RED_FLAGS.filter(([, rx]) => rx.test(text)).map(([name]) => name);
-    if (session.entities.some(e => e.type === 'url')) flags.push('Suspicious link');
-    const level = flags.length >= 4 ? 'HIGH' : flags.length >= 2 ? 'MEDIUM' : 'LOW';
-    return {
-        flags, level,
-        otpAsked: scam.filter(m => OTP_ASK.test(m.text)).length,
-        payAsked: scam.filter(m => PAY_ASK.test(m.text)).length,
-        secretsShared: bot.filter(m => DIGITS4.test(m.text)).length,
-        paid: bot.filter(m => PAID.test(m.text)).length,
-    };
-}
-
-function renderIntel(session) {
+function renderIntel(session, a) {
     const intel = document.getElementById('intel');
-    if (!session.messages.some(m => m.role === 'scammer')) { intel.hidden = true; return; }
+    if (!a || !session.messages.some(m => m.role === 'scammer')) { intel.hidden = true; return; }
     intel.hidden = false;
-    const a = analyse(session);
     const risk = document.getElementById('risk');
     risk.textContent = a.level + ' RISK';
     risk.className = 'risk ' + a.level.toLowerCase();
@@ -81,8 +53,9 @@ function renderIntel(session) {
         ? a.flags.map(f => `<span class="flag">${escapeHTML(f)}</span>`).join('')
         : '<span class="flag">none yet</span>';
     const n = (v) => `<b class="${v ? 'bad' : ''}">${v}</b>`;
+    const money = a.demanded ? ` (${rupees(a.demanded)})` : '';
     document.getElementById('safety').innerHTML =
-        `OTP/PIN asked ${a.otpAsked}× · given ${n(a.secretsShared)} &nbsp;·&nbsp; payment asked ${a.payAsked}× · paid ${n(a.paid)} &nbsp;·&nbsp; links opened <b>0</b>`;
+        `OTP/PIN asked ${a.otp_asked}× · given ${n(a.shared)} &nbsp;·&nbsp; payment asked ${a.pay_asked}×${money} · paid ${n(a.paid)} &nbsp;·&nbsp; links opened <b>0</b>`;
 }
 
 // Format seconds to Xh Ym
@@ -196,6 +169,10 @@ async function pollData() {
         animateValue('stat-entities', stats.entities_total);
         animateValue('stat-campaigns', stats.campaigns);
         lastStats = stats;
+        fetchAPI('/api/money').then(m => {
+            document.getElementById('stat-money').innerText = rupees(m.demanded);
+            document.getElementById('money-paid').innerText = m.paid_times ? 'paid: check report' : 'paid ₹0';
+        }).catch(() => {});
 
         // 3. Sessions list
         const sessions = await fetchAPI('/api/sessions');
@@ -219,7 +196,9 @@ async function pollData() {
         if (currentSessionId) {
             const sessionData = await fetchAPI(`/api/sessions/${currentSessionId}`);
             currentSession = sessionData;
+            currentAnalysis = await fetchAPI(`/api/sessions/${currentSessionId}/analysis`).catch(() => null);
             renderChat(sessionData);
+            renderIntel(sessionData, currentAnalysis);
         }
     } catch (e) {
         console.error("Poll error:", e);
@@ -362,7 +341,6 @@ function renderChat(session) {
     }
 
     renderStage(session);
-    renderIntel(session);
     tick();
     if (autoScroll) win.scrollTop = win.scrollHeight;
 }
@@ -375,6 +353,7 @@ document.getElementById('chat-window').addEventListener('scroll', (e) => {
 
 function selectSession(id) {
     currentSessionId = id;
+    document.getElementById('check-panel').hidden = true;
     pollData(); // Force immediate update
 }
 
@@ -549,7 +528,7 @@ const LABEL = { upi_id: 'UPI ID', phone: 'Phone number', url: 'Website / link', 
 const TS_FMT = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 function complaintText(s) {
-    const a = analyse(s);
+    const a = currentAnalysis || { flags: [], pay_asked: 0, otp_asked: 0, shared: 0, paid: 0, demanded: 0 };
     const scam = s.messages.filter(m => m.role === 'scammer');
     const first = s.messages[0] ? TS_FMT.format(new Date(s.messages[0].ts)) : '-';
     const last = s.messages.length ? TS_FMT.format(new Date(s.messages[s.messages.length - 1].ts)) : '-';
@@ -566,8 +545,8 @@ function complaintText(s) {
         '',
         camp ? `The same identifiers appear in ${camp.size - 1} other report(s) (linked campaign ${camp.id}), which suggests an organised group.` : 'No link to other reports found yet.',
         '',
-        `What happened: I received messages asking me to ${a.payAsked ? 'make a payment' : 'take action'}${a.otpAsked ? ' and share an OTP/PIN' : ''}. ` +
-        (a.secretsShared || a.paid
+        `What happened: I received messages asking me to ${a.pay_asked ? 'make a payment' + (a.demanded ? ` of ${rupees(a.demanded)}` : '') : 'take action'}${a.otp_asked ? ' and share an OTP/PIN' : ''}. ` +
+        (a.shared || a.paid
             ? 'Please check the transcript below: a number or payment may have been shared.'
             : 'I did not share any OTP, PIN or bank details and did not send any money.'),
         '',
@@ -607,3 +586,61 @@ document.getElementById('new-persona').addEventListener('change', (e) => {
         showToast(`${personaOf(currentSession.persona).name} stays on this case. Press Engage Decoy to start a new one with ${picked}.`);
     }
 });
+
+// One-click sample scams (synthetic) so nobody has to type on stage
+const SAMPLES = {
+    kyc: ['sms', 'URGENT: Your SBI account will be blocked today. Share the OTP and pay Rs 10 to sbi.kyc@okaxis or call 9876543210'],
+    arrest: ['whatsapp', 'This is CBI cyber cell. A parcel in your name has illegal drugs and you are under digital arrest. Stay on this call and do not tell anyone. Transfer Rs 50,000 to account 39200188765012 IFSC SBIN0004521 for verification.'],
+    job: ['whatsapp', 'Part time job! Earn Rs 3000 per day by liking YouTube videos. Pay the joining fee of Rs 499 to hr.tasks@ybl. WhatsApp 9123456780 to start.'],
+    hinglish: ['sms', 'Aapka Paytm KYC expire ho gaya hai. Abhi update karo warna wallet block ho jayega. Rs 1 bhejo kyc.update@paytm pe ya call karo 8765432109.'],
+    tamil: ['sms', 'உங்கள் SBI கணக்கு இன்று முடக்கப்படும். KYC புதுப்பிக்க OTP சொல்லுங்கள். ₹10 அனுப்பவும்: sbi.kyc@okaxis அல்லது 9876543210 என்ற எண்ணை அழைக்கவும்.'],
+};
+document.querySelectorAll('.sample').forEach(b => b.addEventListener('click', () => {
+    const [channel, text] = SAMPLES[b.dataset.sample];
+    document.getElementById('new-channel').value = channel;
+    const box = document.getElementById('new-message');
+    box.value = text;
+    box.focus();
+}));
+
+// "Is this a scam?" quick check: verdict, red flags and identifiers, without starting a decoy
+const WHY = {
+    'Urgency': 'Rushes you so you do not stop to think.',
+    'Asks for OTP / PIN': 'No bank or agency ever asks for your OTP or PIN.',
+    'Demands payment': 'Real refunds, prizes and jobs never ask you to pay first.',
+    'Fake authority': 'Pretends to be a bank, police or a big company to sound official.',
+    'Threat': 'Scares you with blocked accounts, arrest or penalties.',
+    'Too good to be true': 'Promises easy money, prizes or refunds.',
+    'Secrecy': 'Tells you not to tell anyone, so nobody can warn you.',
+    'Moves you to WhatsApp / Telegram': 'Pulls you into a private chat app, away from official channels.',
+    'Suspicious link': 'Contains a link. Never open links from unknown senders.',
+};
+const VERDICT = { HIGH: 'Very likely a scam', MEDIUM: 'Likely a scam', LOW: 'No strong scam signs' };
+
+document.getElementById('btn-check').onclick = () => {
+    const text = document.getElementById('new-message').value.trim();
+    if (!text) { showToast('Paste a message first, then press Check.', true); document.getElementById('new-message').focus(); return; }
+    withBusy(document.getElementById('btn-check'), 'Checking…', async () => {
+        const r = await fetchAPI('/api/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+        const low = r.level === 'LOW' && !r.flags.length;
+        const v = document.getElementById('check-verdict');
+        v.textContent = low ? 'No common scam signs found' : VERDICT[r.level];
+        v.className = 'check-verdict' + (r.level === 'HIGH' ? ' high' : '');
+        document.getElementById('check-sub').innerHTML =
+            `<span class="risk ${r.level.toLowerCase()}">${r.level} RISK</span>` +
+            (r.scam_type && !['unknown', 'other'].includes(r.scam_type) ? `<span>looks like: ${escapeHTML(r.scam_type.replace(/_/g, ' '))}</span>` : '') +
+            (r.demanded ? `<span>asks for ${rupees(r.demanded)}</span>` : '');
+        document.getElementById('check-flags').innerHTML = r.flags.map(f =>
+            `<li><b>${escapeHTML(f)}</b>${escapeHTML(WHY[f] || '')}</li>`).join('') ||
+            '<li><b>Still careful</b>Scammers change their wording. If in doubt, call the company on its official number.</li>';
+        document.getElementById('check-ids').innerHTML = r.entities.length
+            ? r.entities.map(e => `<span style="color:${COLORS[e.type] || '#16130f'}">${escapeHTML(LABEL[e.type] || e.type)}: ${escapeHTML(e.value)}</span>`).join('')
+            : '';
+        document.getElementById('check-panel').hidden = false;
+        document.getElementById('check-close').focus();
+    });
+};
+const closeCheck = () => { document.getElementById('check-panel').hidden = true; };
+document.getElementById('check-close').onclick = closeCheck;
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCheck(); });
+document.getElementById('check-engage').onclick = () => { closeCheck(); document.getElementById('btn-create-session').click(); };

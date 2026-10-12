@@ -144,6 +144,8 @@ class Handler(BaseHTTPRequestHandler):
             (r"/api/graph", lambda: self._send(200, S.graph())),
             (r"/api/stats", lambda: self._send(200, S.stats())),
             (r"/api/decoy", lambda: self._send(200, S.decoy())),
+            (r"/api/money", lambda: self._send(200, S.money())),
+            (rf"/api/sessions/{_SESSION}/analysis", lambda sid: self._send(200, S.analysis(sid))),
         ])
 
     def do_POST(self):
@@ -155,6 +157,7 @@ class Handler(BaseHTTPRequestHandler):
             (rf"/api/sessions/{_SESSION}/close", lambda sid: (self._body(), self._send(200, S.close(sid)))),
             (r"/api/admin/reset", lambda: (self._body(), S.reset(), self._send(200, {"ok": True}))),
             (r"/api/decoy", lambda: self._send(200, S.set_decoy(self._body()))),
+            (r"/api/check", lambda: self._send(200, S.check(self._body()))),
         ])
 
 

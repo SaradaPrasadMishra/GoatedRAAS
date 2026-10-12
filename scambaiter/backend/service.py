@@ -35,6 +35,13 @@ except Exception as e:  # noqa: BLE001
     render_report = stubs.render_report
     MODULES["report"] = f"STUB ({type(e).__name__}: {e})"
 
+try:
+    from report.analysis import analyse_session, demanded_amounts, level_for, red_flags
+    MODULES["analysis"] = "real"
+except Exception as e:  # noqa: BLE001
+    analyse_session = demanded_amounts = level_for = red_flags = None
+    MODULES["analysis"] = f"MISSING ({type(e).__name__}: {e})"
+
 ENTITY_TYPES = ["upi_id", "phone", "url", "bank_account", "ifsc", "email", "crypto_wallet"]
 
 
@@ -178,6 +185,33 @@ class Service:
         except Exception:  # noqa: BLE001
             log.exception("render_report crashed; using stub")
             return stubs.render_report(s, g)
+
+    def analysis(self, sid: str) -> dict:
+        """Red flags, risk level, safety record and money demanded for one case."""
+        s = self._require(sid)
+        return analyse_session(s) if analyse_session else {}
+
+    def money(self) -> dict:
+        """Rupees scammers asked for across all cases, and how many times the decoy paid (always 0)."""
+        demanded = paid = 0
+        for s in self.store.all():
+            if analyse_session:
+                a = analyse_session(s)
+                demanded += a["demanded"]
+                paid += a["paid"]
+        return {"demanded": demanded, "paid_times": paid}
+
+    def check(self, body: dict) -> dict:
+        """'Is this a scam?' on one message, without starting a decoy conversation."""
+        text = str(body.get("text") or "").strip()[:4000]
+        if not text:
+            raise ValueError("text must not be empty")
+        entities = self._safe_extract(text, "check")
+        flags = red_flags(text, any(e.type == "url" for e in entities)) if red_flags else []
+        level = level_for(flags) if level_for else "LOW"
+        return {"scam_type": self._safe_classify(text), "level": level, "flags": flags,
+                "entities": [e.model_dump() for e in entities],
+                "demanded": sum(demanded_amounts(text)) if demanded_amounts else 0}
 
     def decoy(self) -> dict:
         return {"persona": self.default_persona, "personas": list(bot.PERSONAS)}

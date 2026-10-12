@@ -61,8 +61,12 @@
             <div class="stat-label">03 / Gangs linked</div>
             <div class="stat-value" id="stat-campaigns">0</div>
         </div>
+        <div class="stat-tile money-stat">
+            <div class="stat-label">04 / Scammers demanded · <span id="money-paid">paid ₹0</span></div>
+            <div class="stat-value" id="stat-money">₹0</div>
+        </div>
         <div class="stat-tile hero-stat">
-            <div class="stat-label">04 / Scammer time wasted</div>
+            <div class="stat-label">05 / Scammer time wasted</div>
             <div class="stat-value" id="stat-time">0h 0m</div>
         </div>
     </section>
@@ -86,9 +90,18 @@
                     <option value="confused_student">Decoy: Priya, college student</option>
                 </select>
                 <p class="slip-hint" id="persona-hint">Decoy for the next case, here or from the scammer's phone.</p>
+                <div class="samples" role="group" aria-label="Sample scams">
+                    <span>Try:</span>
+                    <button type="button" class="sample" data-sample="kyc">KYC</button>
+                    <button type="button" class="sample" data-sample="arrest">Digital arrest</button>
+                    <button type="button" class="sample" data-sample="job">Job task</button>
+                    <button type="button" class="sample" data-sample="hinglish">Hinglish</button>
+                    <button type="button" class="sample" data-sample="tamil">தமிழ்</button>
+                </div>
                 <label class="sr-only" for="new-message">Scam message</label>
                 <textarea id="new-message" name="first_message" rows="3" autocomplete="off" placeholder="Paste the scam here, e.g. “Your KYC is pending, pay ₹10…”"></textarea>
                 <button id="btn-create-session" type="submit">Engage Decoy <span aria-hidden="true">→</span></button>
+                <button id="btn-check" type="button" title="Check the message without starting a decoy">Just check: is this a scam?</button>
             </form>
             <h2 id="h-sessions">Case files</h2>
             <div class="session-list" id="session-list">
@@ -123,6 +136,20 @@
                     <div class="mega">We answer.</div>
                     <div class="mega red">Slowly.</div>
                     <div class="empty-sub">Paste a scam on the intake slip, or open a case file.</div>
+                </div>
+            </div>
+            <div class="check-panel" id="check-panel" role="dialog" aria-labelledby="check-verdict" hidden>
+                <div class="check-head">
+                    <span class="stage-label">Is this a scam?</span>
+                    <button type="button" class="check-x" id="check-close" aria-label="Close">✕</button>
+                </div>
+                <h3 class="check-verdict" id="check-verdict"></h3>
+                <div class="check-sub" id="check-sub"></div>
+                <ul class="check-flags" id="check-flags"></ul>
+                <div class="check-ids" id="check-ids"></div>
+                <p class="check-advice">Don't reply, don't pay, never share an OTP or PIN. Report at <b>cybercrime.gov.in</b> or call <b>1930</b>.</p>
+                <div class="check-actions">
+                    <button type="button" id="check-engage">Engage decoy with this →</button>
                 </div>
             </div>
             <div class="chat-input" id="chat-input-area" style="display: none;">

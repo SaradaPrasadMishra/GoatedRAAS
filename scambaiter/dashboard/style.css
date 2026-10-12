@@ -167,7 +167,7 @@ body {
 
 /* ---------------------------------------------------------------- stats */
 .stats-bar {
-    display: grid; grid-template-columns: 1fr 1fr 1fr 1.45fr;
+    display: grid; grid-template-columns: 0.8fr 1fr 0.85fr 1.15fr 1.3fr;
     border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
     flex-shrink: 0;
 }
@@ -187,6 +187,8 @@ body {
 }
 .stat-value.bump { transform: scale(1.04); color: var(--red); }
 .hero-stat { background: var(--red); color: var(--ink); }
+.money-stat .stat-value { color: var(--tape); }
+#money-paid { color: #3ddc84; font-weight: 700; }
 .hero-stat .stat-label { color: rgba(14, 12, 11, 0.75); font-weight: 700; }
 .hero-stat .stat-value.bump { color: var(--paper); }
 
@@ -232,6 +234,46 @@ select, textarea, .chat-input input {
 .paste-box select option { background: #fbf7ef; color: var(--paper-ink); }
 textarea { resize: none; }
 .paste-box ::placeholder { color: #7c7266; }
+.samples { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: -2px; }
+.samples span { font-family: var(--mono); font-size: 10px; color: #6f665a; margin-right: 2px; }
+.sample {
+    min-height: 0; padding: 2px 7px; font-family: var(--mono); font-size: 11px; font-weight: 700; font-stretch: normal;
+    letter-spacing: 0; text-transform: none; background: transparent; color: var(--paper-ink); border: 1.5px solid var(--paper-ink);
+}
+.sample:hover { background: var(--paper-ink); color: var(--paper); transform: none; box-shadow: none; }
+#btn-check {
+    min-height: 32px; padding: 4px 10px; margin-top: -2px;
+    font-family: var(--mono); font-stretch: normal; font-size: 12px; letter-spacing: 0; text-transform: none;
+    background: transparent; color: var(--paper-ink); border: 1.5px dashed var(--paper-ink);
+}
+#btn-check:hover { background: var(--paper-ink); color: var(--paper); box-shadow: none; transform: none; }
+
+/* "Is this a scam?" panel: covers the chat column until closed */
+.col-center { position: relative; }
+.check-panel {
+    position: absolute; inset: 0; z-index: 5; overflow-y: auto;
+    background: var(--paper); color: var(--paper-ink);
+    padding: 18px 22px; display: flex; flex-direction: column; gap: 10px;
+    animation: slam 300ms var(--snap) both;
+}
+.check-panel[hidden] { display: none; }
+.check-head { display: flex; justify-content: space-between; align-items: center; }
+.check-head .stage-label { color: var(--red-deep); }
+.check-x { min-height: 0; padding: 4px 10px; font-size: 16px; background: transparent; color: var(--paper-ink); border: 1.5px solid var(--paper-ink); }
+.check-x:hover { transform: none; box-shadow: none; background: var(--paper-ink); color: var(--paper); }
+.check-verdict { margin: 0; font-family: var(--display); font-stretch: condensed; font-weight: 700; font-size: 46px; line-height: 0.95; text-transform: uppercase; text-wrap: balance; }
+.check-verdict.high { color: var(--red-deep); }
+.check-sub { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-family: var(--mono); font-size: 12px; }
+.check-flags { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.check-flags li { padding: 6px 10px; border-left: 4px solid var(--red); background: #fbf7ef; font-size: 14px; line-height: 1.35; }
+.check-flags b { font-family: var(--display); font-stretch: condensed; font-size: 16px; text-transform: uppercase; margin-right: 6px; }
+.check-ids { display: flex; flex-wrap: wrap; gap: 6px; font-family: var(--mono); font-size: 12px; }
+.check-ids span { padding: 2px 7px; border: 1.5px solid currentColor; background: #fff; }
+.check-advice { margin: 2px 0 0; font-size: 14px; }
+.check-actions { display: flex; gap: 8px; margin-top: auto; }
+#check-engage { background: var(--red); color: var(--paper-ink); border-color: var(--paper-ink); }
+#check-engage:hover { box-shadow: 4px 4px 0 var(--paper-ink); }
+
 .slip-hint { margin: -4px 0 0; font-family: var(--mono); font-size: 10px; color: #6f665a; }
 select:focus-visible, textarea:focus-visible, .chat-input input:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--tape); }
 
@@ -268,6 +310,7 @@ button:disabled { opacity: 0.6; cursor: progress; transform: none; box-shadow: n
     padding: 9px 12px;
     transition-property: background-color, box-shadow, transform; transition-duration: 150ms; transition-timing-function: ease-out;
 }
+.session-list > * { flex-shrink: 0; } /* scroll instead of squashing cards */
 .session-item:hover { transform: none; box-shadow: var(--ring-hover); background: var(--ink-3); }
 .session-item:active { transform: scale(0.98); }
 .session-item.selected {
