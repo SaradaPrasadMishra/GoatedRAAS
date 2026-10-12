@@ -3,75 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#050716">
+    <meta name="theme-color" content="#0e0c0b">
     <meta name="description" content="Scambaiter: a local AI decoy that keeps scammers talking and captures their payment identifiers. Simulation only.">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.35' cy='.3'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.4' stop-color='%2333d6ff'/%3E%3Cstop offset='1' stop-color='%232f5bff'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='%23070b2c'/%3E%3Ccircle cx='16' cy='16' r='8' fill='url(%23g)'/%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23ff3b1f'/%3E%3Cpath d='M9 22l7-12 7 12z' fill='none' stroke='%230e0c0b' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E">
     <title>Scambaiter · Threat Intercept Console</title>
     <link rel="stylesheet" href="style.css">
     <script src="vendor/cytoscape.min.js"></script>
 </head>
 <body>
-    <!-- Flowing liquid background (pure CSS, works offline) -->
-    <div class="liquid-bg" aria-hidden="true">
-        <span class="blob b1"></span><span class="blob b2"></span>
-        <span class="blob b3"></span><span class="blob b4"></span>
-        <span class="blob b5"></span>
+    <!-- Preloader: counts up, then wipes away -->
+    <div class="preloader" id="preloader" aria-hidden="true">
+        <div class="pre-label">[ ARMING DECOY ]</div>
+        <div class="pre-count" id="pre-count">00</div>
+        <div class="pre-bar"><span id="pre-bar"></span></div>
     </div>
-    <div class="dot-grid" aria-hidden="true"></div>
+
     <div class="grain" aria-hidden="true"></div>
+
+    <!-- Caution tape: the SIMULATION notice, impossible to miss -->
+    <div class="tape" aria-hidden="true">
+        <div class="tape-track">
+            <span>SIMULATION</span><b>▲</b><span>NO REAL MONEY</span><b>▲</b><span>NO REAL PEOPLE</span><b>▲</b><span>NEVER SHARE YOUR OTP</span><b>▲</b><span>CALL 1930</span><b>▲</b>
+            <span>SIMULATION</span><b>▲</b><span>NO REAL MONEY</span><b>▲</b><span>NO REAL PEOPLE</span><b>▲</b><span>NEVER SHARE YOUR OTP</span><b>▲</b><span>CALL 1930</span><b>▲</b>
+        </div>
+    </div>
 
     <header class="top-bar">
         <div class="brand">
-            <div class="logo-mark glass"><span></span></div>
+            <div class="logo-mark"><span></span></div>
             <div>
-                <h1 class="logo" translate="no">SCAMBAITER</h1>
-                <span class="logo-sub">[THREAT INTERCEPT CONSOLE] [LOCAL AI] [OFFLINE]</span>
-            </div>
-        </div>
-        <div class="marquee" aria-hidden="true">
-            <div class="marquee-track">
-                <span>WASTE THEIR TIME</span><i>✦</i><span class="outline">CATCH THEIR UPI</span><i>✦</i>
-                <span>LINK THE GANG</span><i>✦</i><span class="outline">FILE THE EVIDENCE</span><i>✦</i>
-                <span>WASTE THEIR TIME</span><i>✦</i><span class="outline">CATCH THEIR UPI</span><i>✦</i>
-                <span>LINK THE GANG</span><i>✦</i><span class="outline">FILE THE EVIDENCE</span><i>✦</i>
+                <h1 class="logo" translate="no">SCAMBAITER<sup>®</sup></h1>
+                <span class="logo-sub">They call. We answer. Slowly.</span>
             </div>
         </div>
         <div class="badges">
             <span class="badge badge-sim">SIMULATION</span>
-            <span class="badge badge-health glass" id="health-status">Checking LLM…</span>
+            <span class="badge badge-health" id="health-status">Checking LLM…</span>
             <span class="badge badge-offline" id="offline-pill" style="display: none;">API Offline</span>
-            <span class="hud-clock glass" id="hud-clock">--:--:--</span>
+            <span class="hud-clock" id="hud-clock">--:--:--</span>
+            <button type="button" class="icon-btn" id="btn-fullscreen" aria-label="Enter full screen" aria-pressed="false" title="Full screen">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+            </button>
         </div>
     </header>
 
     <section class="stats-bar" aria-label="Live statistics">
-        <div class="stat-tile glass">
-            <div class="stat-label">[01] Sessions</div>
+        <div class="stat-tile">
+            <div class="stat-label">01 / Cases opened</div>
             <div class="stat-value" id="stat-sessions">0</div>
         </div>
-        <div class="stat-tile glass">
-            <div class="stat-label">[02] Identifiers Captured</div>
+        <div class="stat-tile">
+            <div class="stat-label">02 / Identifiers captured</div>
             <div class="stat-value" id="stat-entities">0</div>
         </div>
-        <div class="stat-tile glass">
-            <div class="stat-label">[03] Campaigns Linked</div>
+        <div class="stat-tile">
+            <div class="stat-label">03 / Gangs linked</div>
             <div class="stat-value" id="stat-campaigns">0</div>
         </div>
-        <div class="stat-tile glass hero-stat">
-            <div class="stat-label">[04] Scammer Time Wasted</div>
+        <div class="stat-tile hero-stat">
+            <div class="stat-label">04 / Scammer time wasted</div>
             <div class="stat-value" id="stat-time">0h 0m</div>
         </div>
     </section>
 
     <main class="main-content">
-        <!-- Left: Sessions -->
+        <!-- Left: intake + case files -->
         <aside class="col-left" aria-labelledby="h-sessions">
-            <h2 id="h-sessions">[ Intercepted Sessions ]</h2>
-            <div class="session-list" id="session-list">
-                <!-- Session items populated here -->
-            </div>
-            <form class="paste-box glass" id="new-form" onsubmit="return false">
-                <h3>Intercept new scam</h3>
+            <form class="paste-box" id="new-form" onsubmit="return false">
+                <div class="slip-head"><h3>Intake slip</h3><span>FORM 1930-A</span></div>
                 <label class="sr-only" for="new-channel">Channel the scam arrived on</label>
                 <select id="new-channel" name="channel">
                     <option value="sms">SMS</option>
@@ -80,48 +79,58 @@
                     <option value="simulator">Simulator</option>
                 </select>
                 <label class="sr-only" for="new-message">Scam message</label>
-                <textarea id="new-message" name="first_message" rows="3" autocomplete="off" placeholder="e.g. Your KYC is pending, pay ₹10 to verify…"></textarea>
-                <button id="btn-create-session" type="submit">Engage Decoy</button>
+                <textarea id="new-message" name="first_message" rows="3" autocomplete="off" placeholder="Paste the scam here, e.g. “Your KYC is pending, pay ₹10…”"></textarea>
+                <button id="btn-create-session" type="submit">Engage Decoy <span aria-hidden="true">→</span></button>
             </form>
+            <h2 id="h-sessions">Case files</h2>
+            <div class="session-list" id="session-list">
+                <!-- Session items populated here -->
+            </div>
         </aside>
 
-        <!-- Center: Chat -->
-        <section class="col-center glass" aria-labelledby="h-chat">
+        <!-- Center: the line -->
+        <section class="col-center" aria-labelledby="h-chat">
             <div class="chat-header">
-                <h2 id="h-chat">[ Live Transcript ]</h2>
+                <h2 id="h-chat"><i class="rec"></i>On the line</h2>
                 <div class="chat-actions" id="chat-actions" style="display: none;">
                     <a href="#" target="_blank" id="btn-report" class="btn btn-primary">Evidence Report</a>
                     <button id="btn-close" class="btn btn-danger">Terminate</button>
                 </div>
             </div>
+            <div class="stage" id="stage" hidden>
+                <div class="stage-label">Scammer says</div>
+                <div class="stage-text" id="stage-text"></div>
+            </div>
             <div class="chat-window" id="chat-window" aria-live="polite">
                 <div class="empty-state">
-                    <div class="mega">Paste a scam.</div>
-                    <div class="mega outline">We waste</div>
-                    <div class="mega">their time.</div>
-                    <div class="empty-sub">[ select a session on the left, or engage a new decoy ]</div>
+                    <div class="mega">They call.</div>
+                    <div class="mega">We answer.</div>
+                    <div class="mega red">Slowly.</div>
+                    <div class="empty-sub">Paste a scam on the intake slip, or open a case file.</div>
                 </div>
             </div>
             <div class="chat-input" id="chat-input-area" style="display: none;">
                 <label class="sr-only" for="manual-msg">Next scammer message</label>
-                <input type="text" id="manual-msg" name="text" autocomplete="off" placeholder="Scammer says…">
+                <input type="text" id="manual-msg" name="text" autocomplete="off" placeholder="Type what the scammer says next…">
                 <button id="btn-send-msg" type="button">Transmit</button>
             </div>
         </section>
 
-        <!-- Right: Graph -->
+        <!-- Right: evidence board -->
         <section class="col-right" aria-labelledby="h-graph">
-            <h2 id="h-graph">[ Campaign Network ]</h2>
-            <div class="graph-frame glass">
-                <div id="cy" role="img" aria-label="Network graph linking scam sessions that share identifiers"></div>
-                <div class="graph-empty" id="graph-empty">[ no identifiers yet ]</div>
+            <h2 id="h-graph">Evidence board</h2>
+            <div class="graph-frame">
+                <span class="pin pin-a"></span><span class="pin pin-b"></span>
+                <div id="cy" role="img" aria-label="Evidence board linking scam cases that share identifiers"></div>
+                <div class="graph-empty" id="graph-empty">Nothing pinned yet.</div>
                 <div class="graph-legend">
-                    <span><i style="background:#ffffff;border-radius:50%"></i>session</span>
-                    <span><i style="background:#3ee6a8"></i>upi</span>
-                    <span><i style="background:#6aa8ff"></i>phone</span>
-                    <span><i style="background:#ffb547"></i>url</span>
-                    <span><i style="background:#ff6b6b"></i>bank</span>
-                    <span><i style="background:#4cd7f5"></i>email</span>
+                    <span><i style="background:#16130f;border-radius:50%"></i>case</span>
+                    <span><i style="background:#0f8a5f"></i>upi</span>
+                    <span><i style="background:#2448c9"></i>phone</span>
+                    <span><i style="background:#b45309"></i>link</span>
+                    <span><i style="background:#c0262d"></i>bank</span>
+                    <span><i style="background:#0e7490"></i>email</span>
+                    <span><i class="string"></i>shared</span>
                 </div>
             </div>
         </section>

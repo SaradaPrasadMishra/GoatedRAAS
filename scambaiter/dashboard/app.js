@@ -2,10 +2,10 @@ const API_BASE = window.API_BASE || (location.protocol === "file:" ? "http://loc
 
 // Entity Color Palette
 const COLORS = {
-    upi_id: "#3ee6a8", phone: "#6aa8ff", url: "#ffb547",
-    bank_account: "#ff6b6b", ifsc: "#c08bff", email: "#4cd7f5", crypto_wallet: "#ffd84a"
+    upi_id: "#0f8a5f", phone: "#2448c9", url: "#b45309",
+    bank_account: "#c0262d", ifsc: "#7c3aed", email: "#0e7490", crypto_wallet: "#a16207"
 };
-const CAMPAIGN_COLORS = ['#ff5c8a', '#ff5c8a', '#ffb547', '#b48cff', '#3ee6a8', '#ff7ae0', '#33d6ff'];
+const CAMPAIGN_COLORS = ['#e3260f', '#e3260f', '#b45309', '#5b21b6', '#0f766e', '#be185d', '#1d4ed8'];
 
 // State
 let currentSessionId = null;
@@ -24,6 +24,10 @@ const escapeHTML = (str) => str.replace(/[&<>'"]/g, tag => ({
 const TIME_FMT = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const CLOCK_FMT = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
+// Spread-out force layout so labels don't collide on the projector
+const LAYOUT = { name: 'cose', padding: 34, nodeRepulsion: () => 10000, idealEdgeLength: () => 85, nodeOverlap: 40, componentSpacing: 45, gravity: 1, nestingFactor: 1, numIter: 2000 };
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 // Format seconds to Xh Ym
 const formatTime = (secs) => `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
 
@@ -34,22 +38,23 @@ function initGraph() {
         style: [
             {
                 selector: 'node[type="session"]',
-                style: { 'shape': 'ellipse', 'background-color': '#ffffff', 'background-opacity': 0.12, 'border-width': 3, 'border-color': 'data(color)', 'label': 'data(label)', 'color': '#f4f6ff', 'font-family': 'Segoe UI, system-ui, sans-serif', 'font-weight': 600, 'font-size': '10px', 'text-valign': 'bottom', 'text-margin-y': 6, 'text-outline-color': '#0a0f3a', 'text-outline-width': 3, 'width': 28, 'height': 28, 'underlay-color': 'data(color)', 'underlay-opacity': 0.3, 'underlay-padding': 6, 'underlay-shape': 'ellipse' }
+                style: { 'shape': 'ellipse', 'background-color': '#16130f', 'border-width': 4, 'border-color': 'data(color)', 'label': 'data(label)', 'color': '#16130f', 'font-family': 'Bahnschrift SemiBold Condensed, Bahnschrift, Arial Narrow, sans-serif', 'font-weight': 700, 'font-size': '13px', 'text-transform': 'uppercase', 'text-valign': 'bottom', 'text-margin-y': 6, 'text-background-color': '#fbf7ef', 'text-background-opacity': 1, 'text-background-padding': '3px', 'text-border-color': '#16130f', 'text-border-width': 1, 'text-border-opacity': 1, 'width': 30, 'height': 30 }
             },
             {
                 selector: 'node[type!="session"]',
-                style: { 'shape': 'round-diamond', 'background-color': 'data(color)', 'label': 'data(label)', 'color': 'rgba(230,236,255,0.75)', 'font-family': 'Cascadia Mono, Consolas, monospace', 'font-size': '8px', 'text-valign': 'bottom', 'text-margin-y': 5, 'text-outline-color': '#0a0f3a', 'text-outline-width': 3, 'width': 16, 'height': 16 }
+                style: { 'shape': 'round-rectangle', 'background-color': 'data(color)', 'label': 'data(label)', 'color': '#3a332b', 'font-family': 'Cascadia Mono, Consolas, monospace', 'font-size': '11px', 'text-valign': 'bottom', 'text-margin-y': 4, 'text-wrap': 'ellipsis', 'text-max-width': '130px', 'width': 14, 'height': 14, 'border-width': 2, 'border-color': '#fbf7ef' }
             },
             {
                 selector: 'node[?shared]',
-                style: { 'width': 30, 'height': 30, 'color': '#fff1d6', 'font-size': '9px', 'underlay-color': '#ffb547', 'underlay-opacity': 0.4, 'underlay-padding': 10, 'underlay-shape': 'ellipse', 'border-width': 2, 'border-color': '#ffffff' }
+                style: { 'width': 24, 'height': 24, 'color': '#c4210d', 'font-weight': 700, 'font-size': '10px', 'border-color': '#e3260f', 'border-width': 3, 'underlay-color': '#e3260f', 'underlay-opacity': 0.18, 'underlay-padding': 10, 'underlay-shape': 'ellipse' }
             },
             {
                 selector: 'edge',
-                style: { 'width': 1.5, 'line-color': '#ffffff', 'line-style': 'solid', 'target-arrow-shape': 'none', 'curve-style': 'bezier', 'opacity': 0.28 }
+                style: { 'width': 2.2, 'line-color': '#d7261e', 'curve-style': 'straight', 'target-arrow-shape': 'none', 'opacity': 0.9 }
             }
         ],
-        layout: { name: 'cose' }
+        layout: LAYOUT,
+        minZoom: 0.4, maxZoom: 2.5
     });
 }
 
@@ -156,15 +161,16 @@ function renderSessionList(sessions) {
         div.setAttribute('aria-pressed', s.id === currentSessionId ? 'true' : 'false');
         div.onclick = () => selectSession(s.id);
         
-        let cColor = s.campaign_id ? getCampaignColor(s.campaign_id) : 'rgba(255,255,255,0.4)';
-        let cBadge = s.campaign_id ? `<span class="chip chip-campaign" style="border-color: ${cColor}; color: ${cColor}">${s.campaign_id}</span>` : '';
+        let cColor = s.campaign_id ? '#ff3b1f' : '#6f675e';
+        let cBadge = s.campaign_id ? `<span class="chip chip-campaign" style="border-color: ${cColor}; color: ${cColor}">GANG ${escapeHTML(s.campaign_id)}</span>` : '';
         
         div.innerHTML = `
+            <div class="case-no">CASE #${escapeHTML(s.id.replace(/^s_/, '').toUpperCase())}</div>
             <div>
-                <span class="chip">${escapeHTML(s.scam_type)}</span>
+                <span class="chip">${escapeHTML(s.scam_type.replace(/_/g, ' '))}</span>
                 ${cBadge}
             </div>
-            <div class="session-meta">${s.channel} • ${s.message_count} msgs • ${s.entity_count} entities</div>
+            <div class="session-meta">${escapeHTML(s.channel)} • ${plural(s.message_count, 'msg')} • ${plural(s.entity_count, 'identifier')}</div>
         `;
         container.appendChild(div);
         if (hadFocus === s.id) div.focus();
@@ -172,6 +178,34 @@ function renderSessionList(sessions) {
 }
 
 // Render Center Chat
+// Lyric-video stage: the latest scammer line appears word by word,
+// and any identifier in it gets stamped CAPTURED
+let lastStageId = null;
+function renderStage(session) {
+    const stage = document.getElementById('stage');
+    const last = [...session.messages].reverse().find(m => m.role === 'scammer');
+    if (!last) { stage.hidden = true; lastStageId = null; return; }
+    stage.hidden = false;
+    const stageKey = session.id + '|' + last.id + '|' + session.entities.length;
+    if (stageKey === lastStageId) return;
+    lastStageId = stageKey;
+    const raws = session.entities.filter(e => e.message_id === last.id).map(e => e.raw);
+    // split text into identifier hits and plain words, keeping order
+    const parts = [];
+    let rest = last.text;
+    while (rest.length) {
+        let best = null;
+        raws.forEach(r => { const i = rest.indexOf(r); if (i >= 0 && (!best || i < best.i)) best = { i, r }; });
+        if (!best) { parts.push(...rest.split(/\s+/).filter(Boolean).map(w => ({ w }))); break; }
+        parts.push(...rest.slice(0, best.i).split(/\s+/).filter(Boolean).map(w => ({ w })));
+        parts.push({ w: best.r, hit: true });
+        rest = rest.slice(best.i + best.r.length);
+    }
+    document.getElementById('stage-text').innerHTML = parts.map((p, i) =>
+        `<span class="w${p.hit ? ' hit' : ''}" style="animation-delay:${(i * 0.07).toFixed(2)}s">${escapeHTML(p.w)}</span>`
+    ).join(' ');
+}
+
 let lastChatKey = '';
 let lastChatSession = null;
 let lastChatCount = 0;
@@ -209,6 +243,7 @@ function renderChat(session) {
         win.appendChild(msgDiv);
     });
 
+    renderStage(session);
     if (autoScroll) win.scrollTop = win.scrollHeight;
 }
 
@@ -225,7 +260,7 @@ function selectSession(id) {
 
 // Jitter-free Graph Update
 function getCampaignColor(cid) {
-    if (!cid) return '#ffffff'; // unlinked = white
+    if (!cid) return '#6f675e'; // unlinked = grey
     const num = parseInt(cid.replace(/\D/g, '')) || 0;
     return CAMPAIGN_COLORS[num % CAMPAIGN_COLORS.length];
 }
@@ -287,9 +322,9 @@ function updateGraph(data) {
 
     if (changed) {
         if (isGraphInit) {
-            cy.layout({ name: 'cose', animate: true, randomize: false, fit: false }).run();
+            cy.layout({ ...LAYOUT, animate: true, randomize: false, fit: true }).run();
         } else {
-            cy.layout({ name: 'cose' }).run();
+            cy.layout(LAYOUT).run();
             isGraphInit = true;
         }
     }
@@ -356,11 +391,35 @@ document.getElementById('btn-close').onclick = () => {
 setInterval(pollData, 2000);
 pollData();
 
-// Liquid-glass specular highlight follows the pointer
-document.addEventListener('pointermove', (e) => {
-    const el = e.target.closest && e.target.closest('.glass');
+// Full-screen toggle for the projector (F11 also works)
+const fsBtn = document.getElementById('btn-fullscreen');
+if (fsBtn) {
+    fsBtn.onclick = () => {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen().catch(() => showToast('Full screen was blocked by the browser. Press F11 instead.', true));
+    };
+    document.addEventListener('fullscreenchange', () => {
+        const on = !!document.fullscreenElement;
+        fsBtn.setAttribute('aria-pressed', on);
+        fsBtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Enter full screen');
+        fsBtn.title = on ? 'Exit full screen' : 'Full screen';
+    });
+}
+
+// Preloader: count 00 -> 100, then wipe up
+(function preloader() {
+    const el = document.getElementById('preloader');
     if (!el) return;
-    const r = el.getBoundingClientRect();
-    el.style.setProperty('--mx', `${e.clientX - r.left}px`);
-    el.style.setProperty('--my', `${e.clientY - r.top}px`);
-});
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
+    const num = document.getElementById('pre-count'), bar = document.getElementById('pre-bar');
+    const start = performance.now(), dur = 1100;
+    const tick = (t) => {
+        const p = Math.min(1, (t - start) / dur);
+        const v = Math.round(100 * (1 - Math.pow(1 - p, 2)));
+        num.textContent = String(v).padStart(2, '0');
+        bar.style.width = v + '%';
+        if (p < 1) requestAnimationFrame(tick);
+        else { el.classList.add('done'); setTimeout(() => el.remove(), 1000); }
+    };
+    requestAnimationFrame(tick);
+})();
