@@ -143,6 +143,7 @@ class Handler(BaseHTTPRequestHandler):
             (rf"/api/sessions/{_SESSION}/report", lambda sid: self._send(200, S.report(sid), "text/html")),
             (r"/api/graph", lambda: self._send(200, S.graph())),
             (r"/api/stats", lambda: self._send(200, S.stats())),
+            (r"/api/decoy", lambda: self._send(200, S.decoy())),
         ])
 
     def do_POST(self):
@@ -153,6 +154,7 @@ class Handler(BaseHTTPRequestHandler):
              lambda sid: self._send(200, S.turn(sid, ScammerMessageRequest(**self._body()).text))),
             (rf"/api/sessions/{_SESSION}/close", lambda sid: (self._body(), self._send(200, S.close(sid)))),
             (r"/api/admin/reset", lambda: (self._body(), S.reset(), self._send(200, {"ok": True}))),
+            (r"/api/decoy", lambda: self._send(200, S.set_decoy(self._body()))),
         ])
 
 

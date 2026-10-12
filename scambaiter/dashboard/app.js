@@ -596,9 +596,13 @@ document.getElementById('btn-complaint').onclick = async () => {
     }
 };
 
-// The decoy is fixed for a case once it starts: say so when the picker changes mid-case
+// The decoy picker is the backend's default for every new case, including ones started from the
+// scammer's phone page. A case keeps its decoy once it starts: say so when the picker changes mid-case.
+fetchAPI('/api/decoy').then(d => { document.getElementById('new-persona').value = d.persona; }).catch(() => {});
 document.getElementById('new-persona').addEventListener('change', (e) => {
     const picked = personaOf(e.target.value).name;
+    fetchAPI('/api/decoy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ persona: e.target.value }) })
+        .catch(() => showToast('Could not save the decoy choice. Is the backend running?', true));
     if (currentSession && currentSession.status === 'active' && currentSession.persona !== e.target.value) {
         showToast(`${personaOf(currentSession.persona).name} stays on this case. Press Engage Decoy to start a new one with ${picked}.`);
     }

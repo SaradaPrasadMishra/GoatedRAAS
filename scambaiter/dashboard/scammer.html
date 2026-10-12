@@ -189,7 +189,7 @@
     try {
       let reply;
       if (!sessionId) {
-        const s = await api("/api/sessions", { channel: "whatsapp", persona: "retired_teacher", first_message: msg });
+        const s = await api("/api/sessions", { channel: "whatsapp", persona: "auto", first_message: msg });
         sessionId = s.id;
         store.set(sessionId);
         reply = s.messages.filter(m => m.role === "bot").pop();

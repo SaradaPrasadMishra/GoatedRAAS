@@ -45,6 +45,8 @@ class NotFound(Exception):
 class Service:
     def __init__(self, store: Store | None = None):
         self.store = store or Store()
+        # decoy for new cases that don't name one (e.g. the scammer's phone page); set from the dashboard
+        self.default_persona = "retired_teacher"
         self._graph_lock = threading.Lock()
         self._graph: Graph | None = None
         self._graph_version = -1
@@ -85,7 +87,7 @@ class Service:
         return Health(ok=True, contract_version=CONTRACT_VERSION, llm=llm, model=model)
 
     def create_session(self, req: CreateSessionRequest) -> Session:
-        persona = req.persona if req.persona in bot.PERSONAS else "retired_teacher"
+        persona = req.persona if req.persona in bot.PERSONAS else self.default_persona
         s = Session(id=new_id("s_"), created_at=now_iso(), channel=req.channel, persona=persona,
                     scam_type="unknown", status="active", messages=[], entities=[],
                     time_wasted_seconds=0, is_simulation=True)
@@ -176,6 +178,16 @@ class Service:
         except Exception:  # noqa: BLE001
             log.exception("render_report crashed; using stub")
             return stubs.render_report(s, g)
+
+    def decoy(self) -> dict:
+        return {"persona": self.default_persona, "personas": list(bot.PERSONAS)}
+
+    def set_decoy(self, body: dict) -> dict:
+        persona = body.get("persona")
+        if persona not in bot.PERSONAS:
+            raise ValueError(f"persona must be one of {', '.join(bot.PERSONAS)}")
+        self.default_persona = persona
+        return self.decoy()
 
     def reset(self) -> None:
         self.store.reset()
