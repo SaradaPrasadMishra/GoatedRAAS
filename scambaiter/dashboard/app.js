@@ -45,6 +45,7 @@ const RED_FLAGS = [
     ['Threat', /\b(block(ed)?|suspend(ed)?|arrest|legal action|penalty|freeze|frozen|disconnect(ed)?|fir|warrant|money laundering|case (is )?(registered|filed))\b/i],
     ['Too good to be true', /\b(won|winner|lottery|prize|reward|cashback|double|guaranteed|profit|returns?|loan (is )?approved|earn(ings)?|bonus|refund)\b/i],
     ['Secrecy', /\b(do not (tell|inform|share with)|don'?t tell|keep (it|this) (secret|confidential)|stay on (the|this) call)\b/i],
+    ['Moves you to WhatsApp / Telegram', /\b(whatsapp|telegram|t\.me|wa\.me|signal app)\b/i],
 ];
 const OTP_ASK = /\b(otp|pin|cvv|password|passcode)\b/i;
 const PAY_ASK = RED_FLAGS[2][1];
@@ -586,3 +587,11 @@ document.getElementById('btn-complaint').onclick = async () => {
         showToast('Complaint downloaded as a text file');
     }
 };
+
+// The decoy is fixed for a case once it starts: say so when the picker changes mid-case
+document.getElementById('new-persona').addEventListener('change', (e) => {
+    const picked = personaOf(e.target.value).name;
+    if (currentSession && currentSession.status === 'active' && currentSession.persona !== e.target.value) {
+        showToast(`${personaOf(currentSession.persona).name} stays on this case. Press Engage Decoy to start a new one with ${picked}.`);
+    }
+});

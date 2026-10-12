@@ -35,6 +35,7 @@ RED_FLAGS = [
     ("Threat", r"\b(block(ed)?|suspend(ed)?|arrest|legal action|penalty|freeze|frozen|disconnect(ed)?|fir|warrant|money laundering|case (is )?(registered|filed))\b"),
     ("Too good to be true", r"\b(won|winner|lottery|prize|reward|cashback|double|guaranteed|profit|returns?|loan (is )?approved|earn(ings)?|bonus|refund)\b"),
     ("Secrecy", r"\b(do not (tell|inform|share with)|don'?t tell|keep (it|this) (secret|confidential)|stay on (the|this) call)\b"),
+    ("Moves you to WhatsApp / Telegram", r"\b(whatsapp|telegram|t\.me|wa\.me|signal app)\b"),
 ]
 _OTP = re.compile(r"\b(otp|pin|cvv|password|passcode)\b", re.I)
 _PAY = re.compile(RED_FLAGS[2][1], re.I)
