@@ -28,6 +28,61 @@ const CLOCK_FMT = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2
 const LAYOUT = { name: 'cose', padding: 34, nodeRepulsion: () => 10000, idealEdgeLength: () => 85, nodeOverlap: 40, componentSpacing: 45, gravity: 1, nestingFactor: 1, numIter: 2000 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+// Decoy personas (keys match backend/bot.py PERSONAS)
+const PERSONAS = {
+    retired_teacher: { name: 'Kamala', who: 'Kamala, 68 · retired teacher' },
+    busy_shopkeeper: { name: 'Ramesh', who: 'Ramesh · kirana shop owner' },
+    confused_student: { name: 'Priya', who: 'Priya · college student' },
+};
+const personaOf = (key) => PERSONAS[key] || { name: 'Decoy', who: 'Decoy' };
+
+// Red flags a victim should learn to spot. Checked on the scammer's messages only.
+const RED_FLAGS = [
+    ['Urgency', /\b(urgent|immediately|right now|today|hurry|fast|quick(ly)?|expire[sd]?|last (reminder|chance)|time is running|within \d+ ?(min|minutes|hours?))\b/i],
+    ['Asks for OTP / PIN', /\b(otp|pin|cvv|password|passcode)\b/i],
+    ['Demands payment', /\b(pay|payment|transfer|deposit|fee|charges?|send (money|rs|₹)|collect request|(accept|approve) (the )?(collect )?request|scan (the )?qr)\b|₹|\brs\.? ?\d/i],
+    ['Fake authority', /\b(rbi|police|cbi|cyber ?cell|customs|income tax|trai|court|government|ministry|bank (official|manager|head office)|kyc (team|department)|sbi|hdfc|icici|amazon|flipkart|electricity board)\b/i],
+    ['Threat', /\b(block(ed)?|suspend(ed)?|arrest|legal action|penalty|freeze|frozen|disconnect(ed)?|fir|warrant|money laundering|case (is )?(registered|filed))\b/i],
+    ['Too good to be true', /\b(won|winner|lottery|prize|reward|cashback|double|guaranteed|profit|returns?|loan (is )?approved|earn(ings)?|bonus|refund)\b/i],
+    ['Secrecy', /\b(do not (tell|inform|share with)|don'?t tell|keep (it|this) (secret|confidential)|stay on (the|this) call)\b/i],
+];
+const OTP_ASK = /\b(otp|pin|cvv|password|passcode)\b/i;
+const PAY_ASK = RED_FLAGS[2][1];
+const DIGITS4 = /\d(?:[\s-]?\d){3,}/;           // 4+ digit run: an OTP, PIN or account number
+const PAID = /\bi(?: have|'ve)? (?:sent|paid|transferred)\b/i;
+
+function analyse(session) {
+    const scam = session.messages.filter(m => m.role === 'scammer');
+    const bot = session.messages.filter(m => m.role === 'bot');
+    const text = scam.map(m => m.text).join('\n');
+    const flags = RED_FLAGS.filter(([, rx]) => rx.test(text)).map(([name]) => name);
+    if (session.entities.some(e => e.type === 'url')) flags.push('Suspicious link');
+    const level = flags.length >= 4 ? 'HIGH' : flags.length >= 2 ? 'MEDIUM' : 'LOW';
+    return {
+        flags, level,
+        otpAsked: scam.filter(m => OTP_ASK.test(m.text)).length,
+        payAsked: scam.filter(m => PAY_ASK.test(m.text)).length,
+        secretsShared: bot.filter(m => DIGITS4.test(m.text)).length,
+        paid: bot.filter(m => PAID.test(m.text)).length,
+    };
+}
+
+function renderIntel(session) {
+    const intel = document.getElementById('intel');
+    if (!session.messages.some(m => m.role === 'scammer')) { intel.hidden = true; return; }
+    intel.hidden = false;
+    const a = analyse(session);
+    const risk = document.getElementById('risk');
+    risk.textContent = a.level + ' RISK';
+    risk.className = 'risk ' + a.level.toLowerCase();
+    document.getElementById('flags').innerHTML = a.flags.length
+        ? a.flags.map(f => `<span class="flag">${escapeHTML(f)}</span>`).join('')
+        : '<span class="flag">none yet</span>';
+    const n = (v) => `<b class="${v ? 'bad' : ''}">${v}</b>`;
+    document.getElementById('safety').innerHTML =
+        `OTP/PIN asked ${a.otpAsked}× · given ${n(a.secretsShared)} &nbsp;·&nbsp; payment asked ${a.payAsked}× · paid ${n(a.paid)} &nbsp;·&nbsp; links opened <b>0</b>`;
+}
+
 // Format seconds to Xh Ym
 const formatTime = (secs) => secs >= 3600
     ? `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`
@@ -56,7 +111,7 @@ function initGraph() {
             }
         ],
         layout: LAYOUT,
-        minZoom: 0.4, maxZoom: 2.5
+        minZoom: 0.4, maxZoom: 1.4
     });
 }
 
@@ -83,6 +138,40 @@ async function fetchAPI(endpoint, options = {}) {
     }
 }
 
+let lastStats = null, lastSessions = [], lastGraph = null, currentSession = null;
+const IDLE_CAP = 120; // a silent scammer stops counting after 2 minutes
+
+// Seconds since a session's last message, while it is still active
+const liveExtra = (s, now) => {
+    if (s.status !== 'active') return 0;
+    const last = Date.parse(s.created_at) + s.time_wasted_seconds * 1000;
+    return Math.max(0, Math.min(IDLE_CAP, Math.floor((now - last) / 1000)));
+};
+
+// Every second: the headline stat keeps counting while scammers are on the line
+function tick() {
+    const now = Date.now();
+    if (lastStats) {
+        const live = lastSessions.reduce((sum, s) => sum + liveExtra(s, now), 0);
+        document.getElementById('stat-time').innerText = formatTime(lastStats.time_wasted_seconds + live);
+    }
+    const meta = document.getElementById('call-meta');
+    if (currentSession) {
+        const s = currentSession;
+        const secs = s.status === 'active'
+            ? s.time_wasted_seconds + liveExtra({ ...s, created_at: s.messages[0]?.ts || s.created_at }, now)
+            : s.time_wasted_seconds;
+        meta.hidden = false;
+        document.getElementById('call-persona').textContent = 'as ' + personaOf(s.persona).name;
+        document.getElementById('call-persona').title = personaOf(s.persona).who;
+        document.getElementById('call-timer').textContent = (s.status === 'active' ? 'on call ' : 'closed after ') + formatClock(secs);
+    } else {
+        meta.hidden = true;
+    }
+}
+setInterval(tick, 1000);
+const formatClock = (secs) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+
 // Main Polling Loop
 async function pollData() {
     if (isPolling) return;
@@ -104,19 +193,23 @@ async function pollData() {
         animateValue('stat-sessions', stats.sessions);
         animateValue('stat-entities', stats.entities_total);
         animateValue('stat-campaigns', stats.campaigns);
-        document.getElementById('stat-time').innerText = formatTime(stats.time_wasted_seconds);
+        lastStats = stats;
 
         // 3. Sessions list
         const sessions = await fetchAPI('/api/sessions');
+        lastSessions = sessions;
         renderSessionList(sessions);
+        tick();
 
         // 4. Graph
         const graphData = await fetchAPI('/api/graph');
+        lastGraph = graphData;
         updateGraph(graphData);
 
         // 5. Active Chat
         if (currentSessionId) {
             const sessionData = await fetchAPI(`/api/sessions/${currentSessionId}`);
+            currentSession = sessionData;
             renderChat(sessionData);
         }
     } catch (e) {
@@ -250,7 +343,18 @@ function renderChat(session) {
         win.appendChild(msgDiv);
     });
 
+    // the backend saves the scammer's message before the model answers: show the decoy typing
+    const last = session.messages[session.messages.length - 1];
+    if (session.status === 'active' && last && last.role === 'scammer') {
+        const t = document.createElement('div');
+        t.className = 'typing';
+        t.innerHTML = `${escapeHTML(personaOf(session.persona).name)} is typing <i></i><i></i><i></i>`;
+        win.appendChild(t);
+    }
+
     renderStage(session);
+    renderIntel(session);
+    tick();
     if (autoScroll) win.scrollTop = win.scrollHeight;
 }
 
@@ -356,7 +460,7 @@ document.getElementById('btn-create-session').onclick = () => {
     if (!text) { showToast('Paste a scam message first, then press Engage Decoy.', true); box.focus(); return; }
     const btn = document.getElementById('btn-create-session');
     withBusy(btn, 'Engaging…', async () => {
-        const req = { channel: document.getElementById('new-channel').value, first_message: text, persona: "retired_teacher" };
+        const req = { channel: document.getElementById('new-channel').value, first_message: text, persona: document.getElementById('new-persona').value };
         const session = await fetchAPI('/api/sessions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(req) });
         box.value = '';
         selectSession(session.id);
@@ -430,3 +534,55 @@ if (fsBtn) {
     };
     requestAnimationFrame(tick);
 })();
+
+// "Complaint" button: a ready-to-paste complaint for cybercrime.gov.in (copied, or downloaded as .txt)
+const LABEL = { upi_id: 'UPI ID', phone: 'Phone number', url: 'Website / link', bank_account: 'Bank account', ifsc: 'IFSC code', email: 'Email', crypto_wallet: 'Crypto wallet' };
+const TS_FMT = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+function complaintText(s) {
+    const a = analyse(s);
+    const scam = s.messages.filter(m => m.role === 'scammer');
+    const first = s.messages[0] ? TS_FMT.format(new Date(s.messages[0].ts)) : '-';
+    const last = s.messages.length ? TS_FMT.format(new Date(s.messages[s.messages.length - 1].ts)) : '-';
+    const camp = lastGraph && lastGraph.campaigns.find(c => c.session_ids.includes(s.id));
+    const lines = [
+        'SCAM COMPLAINT [SIMULATION - generated by Scambaiter]',
+        '',
+        `Incident: ${s.scam_type.replace(/_/g, ' ')} scam received on ${s.channel}`,
+        `Date/time: ${first} to ${last}`,
+        `Red flags: ${a.flags.join(', ') || 'none detected'}`,
+        '',
+        'Identifiers used by the scammer:',
+        ...(s.entities.length ? s.entities.map(e => `- ${LABEL[e.type] || e.type}: ${e.value}`) : ['- none captured']),
+        '',
+        camp ? `The same identifiers appear in ${camp.size - 1} other report(s) (linked campaign ${camp.id}), which suggests an organised group.` : 'No link to other reports found yet.',
+        '',
+        `What happened: I received messages asking me to ${a.payAsked ? 'make a payment' : 'take action'}${a.otpAsked ? ' and share an OTP/PIN' : ''}. ` +
+        (a.secretsShared || a.paid
+            ? 'Please check the transcript below: a number or payment may have been shared.'
+            : 'I did not share any OTP, PIN or bank details and did not send any money.'),
+        '',
+        "Scammer's messages:",
+        ...scam.map(m => `[${TS_FMT.format(new Date(m.ts))}] ${m.text}`),
+        '',
+        'Report at https://cybercrime.gov.in or call 1930. Identifiers are machine-extracted; please verify before legal action.',
+    ];
+    return lines.join('\n');
+}
+
+document.getElementById('btn-complaint').onclick = async () => {
+    if (!currentSession) return;
+    const text = complaintText(currentSession);
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast('Complaint copied. Paste it at cybercrime.gov.in');
+    } catch (e) {
+        const blob = new Blob([text], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `complaint-${currentSession.id}.txt`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast('Complaint downloaded as a text file');
+    }
+};

@@ -1,4 +1,5 @@
 import html
+import re
 from datetime import datetime
 
 from contracts.models import Session, Graph
@@ -23,6 +24,39 @@ LABELS = {
     "email": "Email",
     "crypto_wallet": "Crypto wallet",
 }
+
+
+# Same red flags as the dashboard (dashboard/app.js RED_FLAGS), checked on the scammer's messages
+RED_FLAGS = [
+    ("Urgency", r"\b(urgent|immediately|right now|today|hurry|fast|quick(ly)?|expire[sd]?|last (reminder|chance)|time is running|within \d+ ?(min|minutes|hours?))\b"),
+    ("Asks for OTP / PIN", r"\b(otp|pin|cvv|password|passcode)\b"),
+    ("Demands payment", r"\b(pay|payment|transfer|deposit|fee|charges?|send (money|rs|₹)|collect request|(accept|approve) (the )?(collect )?request|scan (the )?qr)\b|₹|\brs\.? ?\d"),
+    ("Fake authority", r"\b(rbi|police|cbi|cyber ?cell|customs|income tax|trai|court|government|ministry|bank (official|manager|head office)|kyc (team|department)|sbi|hdfc|icici|amazon|flipkart|electricity board)\b"),
+    ("Threat", r"\b(block(ed)?|suspend(ed)?|arrest|legal action|penalty|freeze|frozen|disconnect(ed)?|fir|warrant|money laundering|case (is )?(registered|filed))\b"),
+    ("Too good to be true", r"\b(won|winner|lottery|prize|reward|cashback|double|guaranteed|profit|returns?|loan (is )?approved|earn(ings)?|bonus|refund)\b"),
+    ("Secrecy", r"\b(do not (tell|inform|share with)|don'?t tell|keep (it|this) (secret|confidential)|stay on (the|this) call)\b"),
+]
+_OTP = re.compile(r"\b(otp|pin|cvv|password|passcode)\b", re.I)
+_PAY = re.compile(RED_FLAGS[2][1], re.I)
+_DIGITS4 = re.compile(r"\d(?:[\s-]?\d){3,}")
+_PAID = re.compile(r"\bi(?: have|'ve)? (?:sent|paid|transferred)\b", re.I)
+
+
+def _analyse(session: Session) -> dict:
+    scam = [m.text for m in session.messages if m.role == "scammer"]
+    bot = [m.text for m in session.messages if m.role == "bot"]
+    joined = "\n".join(scam)
+    flags = [name for name, rx in RED_FLAGS if re.search(rx, joined, re.I)]
+    if any(e.type == "url" for e in session.entities):
+        flags.append("Suspicious link")
+    level = "HIGH" if len(flags) >= 4 else "MEDIUM" if len(flags) >= 2 else "LOW"
+    return {
+        "flags": flags, "level": level,
+        "otp_asked": sum(bool(_OTP.search(t)) for t in scam),
+        "pay_asked": sum(bool(_PAY.search(t)) for t in scam),
+        "shared": sum(bool(_DIGITS4.search(t)) for t in bot),
+        "paid": sum(bool(_PAID.search(t)) for t in bot),
+    }
 
 
 def _fmt_ts(ts: str) -> str:
@@ -113,6 +147,8 @@ def render_report(session: Session, graph: Graph) -> str:
     else:
         campaign_html = "<p>No linked campaign yet. This appears to be an isolated incident.</p>"
 
+    a = _analyse(session)
+    flags_html = "".join(f'<span class="flag">{html.escape(f)}</span>' for f in a["flags"]) or '<span class="flag">none detected</span>'
     sid = html.escape(session.id)
     scam_type = html.escape(session.scam_type.replace("_", " ").title())
     channel = html.escape(session.channel.title())
@@ -188,6 +224,13 @@ def render_report(session: Session, graph: Graph) -> str:
     td.empty {{ text-align: center; color: #7b83a3; }}
     .tag {{ display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border: 1.5px solid; border-radius: 999px; white-space: nowrap; }}
 
+    .flags-box {{ display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }}
+    .flag {{ font-size: 12px; font-weight: 600; padding: 3px 9px; border: 1.5px solid #ff3b1f; color: #c4210d; background: #fff4f1; }}
+    .risk {{ font-size: 16px; padding: 3px 10px; color: #0e0c0b; background: #ffd60a; }}
+    .risk-high {{ background: #ff3b1f; }}
+    .risk-low {{ background: #e6dcc8; }}
+    .safety {{ flex-basis: 100%; margin: 8px 0 0; font-size: 12px; color: #3a332b; }}
+    .safety b {{ color: #0f8a5f; }}
     .campaign {{ border-radius: 12px; padding: 14px 16px; background: #fff8eb; border: 1px solid #f6d58a; }}
     .campaign p {{ margin: 0 0 6px; }}
     .campaign ul {{ margin: 6px 0 0; padding-left: 20px; }}
@@ -250,6 +293,14 @@ def render_report(session: Session, graph: Graph) -> str:
                 <div class="kpi"><b class="mono">[03] IDENTIFIERS</b><span class="display">{len(escaped_entities)}</span></div>
                 <div class="kpi hero"><b class="mono">[04] TIME WASTED</b><span class="display" style="text-transform:none">{time_str}</span></div>
             </section>
+
+            <h2 class="display">Why this was flagged</h2>
+            <div class="flags-box">
+                <span class="risk risk-{a["level"].lower()} display">{a["level"]} RISK</span>
+                {flags_html}
+                <p class="safety mono">Safety record: OTP/PIN requested {a["otp_asked"]}× · shared <b>{a["shared"]}</b> &nbsp;|&nbsp;
+                payment requested {a["pay_asked"]}× · paid <b>{a["paid"]}</b> &nbsp;|&nbsp; links opened <b>0</b></p>
+            </div>
 
             <h2 class="display">Extracted identifiers <small class="mono">[ {scammer_msgs} SCAMMER MESSAGES ]</small></h2>
             <p class="timeframe mono">{first_ts} → {last_ts}</p>

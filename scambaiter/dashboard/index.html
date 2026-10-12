@@ -79,6 +79,12 @@
                     <option value="telegram">Telegram</option>
                     <option value="simulator">Simulator</option>
                 </select>
+                <label class="sr-only" for="new-persona">Decoy persona</label>
+                <select id="new-persona" name="persona">
+                    <option value="retired_teacher">Decoy: Kamala, 68, retired teacher</option>
+                    <option value="busy_shopkeeper">Decoy: Ramesh, kirana shop owner</option>
+                    <option value="confused_student">Decoy: Priya, college student</option>
+                </select>
                 <label class="sr-only" for="new-message">Scam message</label>
                 <textarea id="new-message" name="first_message" rows="3" autocomplete="off" placeholder="Paste the scam here, e.g. “Your KYC is pending, pay ₹10…”"></textarea>
                 <button id="btn-create-session" type="submit">Engage Decoy <span aria-hidden="true">→</span></button>
@@ -92,15 +98,23 @@
         <!-- Center: the line -->
         <section class="col-center" aria-labelledby="h-chat">
             <div class="chat-header">
-                <h2 id="h-chat"><i class="rec"></i>On the line</h2>
+                <div class="chat-title">
+                    <h2 id="h-chat"><i class="rec"></i>On the line</h2>
+                    <div class="call-meta" id="call-meta" hidden><span id="call-persona"></span> · <span id="call-timer">0:00</span></div>
+                </div>
                 <div class="chat-actions" id="chat-actions" style="display: none;">
-                    <a href="#" target="_blank" id="btn-report" class="btn btn-primary">Evidence Report</a>
+                    <a href="#" target="_blank" id="btn-report" class="btn btn-primary" title="Printable evidence report">Report</a>
+                    <button id="btn-complaint" class="btn btn-primary" type="button" title="Copy a ready-to-paste complaint for cybercrime.gov.in">Complaint</button>
                     <button id="btn-close" class="btn btn-danger">Terminate</button>
                 </div>
             </div>
             <div class="stage" id="stage" hidden>
                 <div class="stage-label">Scammer says</div>
                 <div class="stage-text" id="stage-text"></div>
+            </div>
+            <div class="intel" id="intel" hidden>
+                <div class="intel-row"><span class="intel-k">Red flags</span><span class="risk" id="risk"></span><span class="flags" id="flags"></span></div>
+                <div class="intel-row"><span class="intel-k">Safety</span><span class="safety" id="safety"></span></div>
             </div>
             <div class="chat-window" id="chat-window" aria-live="polite">
                 <div class="empty-state">

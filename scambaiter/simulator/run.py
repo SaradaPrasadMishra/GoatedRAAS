@@ -136,6 +136,8 @@ def main() -> int:
     ap.add_argument("--delay", type=float, default=0)
     ap.add_argument("--seed", type=int, default=26)
     ap.add_argument("--live", action="store_true", help="three scripts from one campaign with four-second pacing")
+    ap.add_argument("--persona", default=None, choices=("retired_teacher", "busy_shopkeeper", "confused_student", "rotate"),
+                    help="decoy persona; 'rotate' gives each scam a different one (default: rotate with --live, else retired_teacher)")
     args = ap.parse_args()
     if args.turns < 1: ap.error("--turns must be >= 1")
     rng = random.Random(args.seed)
@@ -157,13 +159,17 @@ def main() -> int:
             with httpx.Client() as probe:
                 if ollama_ready(probe):
                     args.mode = "llm"
+    if args.persona is None:
+        args.persona = "rotate" if args.live else "retired_teacher"
+    personas = ["retired_teacher", "busy_shopkeeper", "confused_student"]
     print(f"Scammer lines: {'AI (local model, planted identifiers only)' if args.mode == 'llm' else 'pre-written scripts'}")
     base = args.base_url.rstrip("/")
     try: runs = json.loads(RUNS_PATH.read_text(encoding="utf-8")) if RUNS_PATH.exists() else []
     except (OSError, json.JSONDecodeError): runs = []
     with httpx.Client(timeout=httpx.Timeout(15.0, connect=5.0)) as client:
-        for script in selected:
-            first = client.post(base + "/api/sessions", json={"channel": "simulator", "persona": "retired_teacher", "first_message": script.opening})
+        for i, script in enumerate(selected):
+            persona = personas[i % len(personas)] if args.persona == "rotate" else args.persona
+            first = client.post(base + "/api/sessions", json={"channel": "simulator", "persona": persona, "first_message": script.opening})
             first.raise_for_status(); session = first.json(); sid = session["id"]
             revealed = {e["value"] for e in entity_tokens(script) if e["value"].lower() in script.opening.lower()}
             turns_done = 1
