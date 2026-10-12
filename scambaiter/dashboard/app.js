@@ -2,10 +2,10 @@ const API_BASE = window.API_BASE || (location.protocol === "file:" ? "http://loc
 
 // Entity Color Palette
 const COLORS = {
-    upi_id: "#22c55e", phone: "#3b82f6", url: "#f59e0b",
-    bank_account: "#ef4444", ifsc: "#a855f7", email: "#06b6d4", crypto_wallet: "#eab308"
+    upi_id: "#3ee6a8", phone: "#6aa8ff", url: "#ffb547",
+    bank_account: "#ff6b6b", ifsc: "#c08bff", email: "#4cd7f5", crypto_wallet: "#ffd84a"
 };
-const CAMPAIGN_COLORS = ['#ff2e63', '#ff2e63', '#ffb627', '#a855f7', '#22c55e', '#ec4899', '#3b82f6'];
+const CAMPAIGN_COLORS = ['#ff5c8a', '#ff5c8a', '#ffb547', '#b48cff', '#3ee6a8', '#ff7ae0', '#33d6ff'];
 
 // State
 let currentSessionId = null;
@@ -20,6 +20,10 @@ const escapeHTML = (str) => str.replace(/[&<>'"]/g, tag => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 }[tag]));
 
+// Locale-aware time formatting
+const TIME_FMT = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const CLOCK_FMT = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
 // Format seconds to Xh Ym
 const formatTime = (secs) => `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
 
@@ -30,19 +34,19 @@ function initGraph() {
         style: [
             {
                 selector: 'node[type="session"]',
-                style: { 'shape': 'ellipse', 'background-color': '#03060d', 'border-width': 3, 'border-color': 'data(color)', 'label': 'data(label)', 'color': '#d7f6ff', 'font-family': 'Cascadia Mono, Consolas, monospace', 'font-size': '9px', 'text-valign': 'bottom', 'text-margin-y': 6, 'text-outline-color': '#03060d', 'text-outline-width': 3, 'width': 26, 'height': 26, 'underlay-color': 'data(color)', 'underlay-opacity': 0.25, 'underlay-padding': 5, 'underlay-shape': 'ellipse' }
+                style: { 'shape': 'ellipse', 'background-color': '#ffffff', 'background-opacity': 0.12, 'border-width': 3, 'border-color': 'data(color)', 'label': 'data(label)', 'color': '#f4f6ff', 'font-family': 'Segoe UI, system-ui, sans-serif', 'font-weight': 600, 'font-size': '10px', 'text-valign': 'bottom', 'text-margin-y': 6, 'text-outline-color': '#0a0f3a', 'text-outline-width': 3, 'width': 28, 'height': 28, 'underlay-color': 'data(color)', 'underlay-opacity': 0.3, 'underlay-padding': 6, 'underlay-shape': 'ellipse' }
             },
             {
                 selector: 'node[type!="session"]',
-                style: { 'shape': 'diamond', 'background-color': 'data(color)', 'label': 'data(label)', 'color': '#6f8fa8', 'font-family': 'Cascadia Mono, Consolas, monospace', 'font-size': '8px', 'text-valign': 'bottom', 'text-margin-y': 5, 'text-outline-color': '#03060d', 'text-outline-width': 3, 'width': 16, 'height': 16 }
+                style: { 'shape': 'round-diamond', 'background-color': 'data(color)', 'label': 'data(label)', 'color': 'rgba(230,236,255,0.75)', 'font-family': 'Cascadia Mono, Consolas, monospace', 'font-size': '8px', 'text-valign': 'bottom', 'text-margin-y': 5, 'text-outline-color': '#0a0f3a', 'text-outline-width': 3, 'width': 16, 'height': 16 }
             },
             {
                 selector: 'node[?shared]',
-                style: { 'width': 30, 'height': 30, 'color': '#ffe2a8', 'font-size': '9px', 'underlay-color': '#ffb627', 'underlay-opacity': 0.35, 'underlay-padding': 9, 'underlay-shape': 'ellipse', 'border-width': 2, 'border-color': '#ffb627' }
+                style: { 'width': 30, 'height': 30, 'color': '#fff1d6', 'font-size': '9px', 'underlay-color': '#ffb547', 'underlay-opacity': 0.4, 'underlay-padding': 10, 'underlay-shape': 'ellipse', 'border-width': 2, 'border-color': '#ffffff' }
             },
             {
                 selector: 'edge',
-                style: { 'width': 1.5, 'line-color': '#2de2e6', 'line-style': 'dashed', 'line-dash-pattern': [4, 3], 'target-arrow-shape': 'none', 'curve-style': 'bezier', 'opacity': 0.45 }
+                style: { 'width': 1.5, 'line-color': '#ffffff', 'line-style': 'solid', 'target-arrow-shape': 'none', 'curve-style': 'bezier', 'opacity': 0.28 }
             }
         ],
         layout: { name: 'cose' }
@@ -50,9 +54,9 @@ function initGraph() {
 }
 
 // Show Toast
-function showToast(msg) {
+function showToast(msg, isError = false) {
     const t = document.createElement('div');
-    t.className = 'toast';
+    t.className = isError ? 'toast toast-error' : 'toast';
     t.innerText = msg;
     document.getElementById('toast-container').appendChild(t);
     setTimeout(() => t.remove(), 5000);
@@ -127,29 +131,43 @@ function animateValue(id, value) {
 // HUD clock
 setInterval(() => {
     const c = document.getElementById('hud-clock');
-    if (c) c.innerText = new Date().toLocaleTimeString('en-GB');
+    if (c) c.innerText = CLOCK_FMT.format(new Date());
 }, 1000);
 
 // Render Left Column
+let lastListKey = '';
 function renderSessionList(sessions) {
     const container = document.getElementById('session-list');
+    // Re-render only when something changed, so keyboard focus survives polling
+    const key = currentSessionId + '|' + JSON.stringify(sessions);
+    if (key === lastListKey) return;
+    lastListKey = key;
+    const hadFocus = container.contains(document.activeElement) ? document.activeElement.dataset.id : null;
     container.innerHTML = '';
+    if (!sessions.length) {
+        container.innerHTML = '<div class="session-empty">[ no sessions yet ]<br>Paste a scam message below and press Engage Decoy.</div>';
+        return;
+    }
     sessions.forEach(s => {
-        const div = document.createElement('div');
+        const div = document.createElement('button');
+        div.type = 'button';
+        div.dataset.id = s.id;
         div.className = `session-item ${s.id === currentSessionId ? 'selected' : ''}`;
+        div.setAttribute('aria-pressed', s.id === currentSessionId ? 'true' : 'false');
         div.onclick = () => selectSession(s.id);
         
-        let cColor = s.campaign_id ? getCampaignColor(s.campaign_id) : '#374151';
+        let cColor = s.campaign_id ? getCampaignColor(s.campaign_id) : 'rgba(255,255,255,0.4)';
         let cBadge = s.campaign_id ? `<span class="chip chip-campaign" style="border-color: ${cColor}; color: ${cColor}">${s.campaign_id}</span>` : '';
         
         div.innerHTML = `
             <div>
-                <span class="chip" style="background: #374151">${s.scam_type}</span>
+                <span class="chip">${escapeHTML(s.scam_type)}</span>
                 ${cBadge}
             </div>
             <div class="session-meta">${s.channel} • ${s.message_count} msgs • ${s.entity_count} entities</div>
         `;
         container.appendChild(div);
+        if (hadFocus === s.id) div.focus();
     });
 }
 
@@ -183,11 +201,11 @@ function renderChat(session) {
         mEntities.forEach(ent => {
             const eRaw = escapeHTML(ent.raw);
             const color = COLORS[ent.type] || '#fff';
-            const span = `<span style="color: ${color}; font-weight: bold; background: rgba(0,0,0,0.2); padding: 0 4px; border-radius: 4px;">${eRaw}</span>`;
+            const span = `<span style="color: ${color}; font-weight: bold; background: ${color}22; box-shadow: inset 0 0 0 1px ${color}66;">${eRaw}</span>`;
             htmlText = htmlText.split(eRaw).join(span);
         });
 
-        msgDiv.innerHTML = `<div>${htmlText}</div><div class="msg-ts">${new Date(m.ts).toLocaleTimeString()}</div>`;
+        msgDiv.innerHTML = `<div>${htmlText}</div><div class="msg-ts">${TIME_FMT.format(new Date(m.ts))}</div>`;
         win.appendChild(msgDiv);
     });
 
@@ -207,7 +225,7 @@ function selectSession(id) {
 
 // Jitter-free Graph Update
 function getCampaignColor(cid) {
-    if (!cid) return '#2de2e6'; // unlinked = cyan
+    if (!cid) return '#ffffff'; // unlinked = white
     const num = parseInt(cid.replace(/\D/g, '')) || 0;
     return CAMPAIGN_COLORS[num % CAMPAIGN_COLORS.length];
 }
@@ -265,6 +283,7 @@ function updateGraph(data) {
     });
 
     if (newElements.length > 0) cy.add(newElements);
+    document.getElementById('graph-empty').hidden = data.nodes.length > 0;
 
     if (changed) {
         if (isGraphInit) {
@@ -277,29 +296,71 @@ function updateGraph(data) {
 }
 
 // User Actions
-document.getElementById('btn-create-session').onclick = async () => {
-    const text = document.getElementById('new-message').value.trim();
-    if (!text) return;
-    const req = { channel: document.getElementById('new-channel').value, first_message: text, persona: "retired_teacher" };
-    const session = await fetchAPI('/api/sessions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(req) });
-    document.getElementById('new-message').value = '';
-    selectSession(session.id);
+const OFFLINE_HELP = "Can't reach the backend on :8000. Start it with python -m backend.main (or tools/mock_server.py) and try again.";
+
+// Disable a button and show a busy label while a request runs
+async function withBusy(btn, busyLabel, fn) {
+    const label = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = busyLabel;
+    try { await fn(); }
+    catch (e) { showToast(OFFLINE_HELP, true); }
+    finally { btn.disabled = false; btn.innerText = label; }
+}
+
+document.getElementById('btn-create-session').onclick = () => {
+    const box = document.getElementById('new-message');
+    const text = box.value.trim();
+    if (!text) { showToast('Paste a scam message first, then press Engage Decoy.', true); box.focus(); return; }
+    const btn = document.getElementById('btn-create-session');
+    withBusy(btn, 'Engaging…', async () => {
+        const req = { channel: document.getElementById('new-channel').value, first_message: text, persona: "retired_teacher" };
+        const session = await fetchAPI('/api/sessions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(req) });
+        box.value = '';
+        selectSession(session.id);
+    });
 };
 
-document.getElementById('btn-send-msg').onclick = async () => {
-    const text = document.getElementById('manual-msg').value.trim();
+document.getElementById('btn-send-msg').onclick = () => {
+    const input = document.getElementById('manual-msg');
+    const text = input.value.trim();
     if (!text || !currentSessionId) return;
-    await fetchAPI(`/api/sessions/${currentSessionId}/messages`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text}) });
-    document.getElementById('manual-msg').value = '';
-    pollData();
+    withBusy(document.getElementById('btn-send-msg'), 'Sending…', async () => {
+        await fetchAPI(`/api/sessions/${currentSessionId}/messages`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text}) });
+        input.value = '';
+        pollData();
+    });
 };
-document.getElementById('manual-msg').addEventListener('keypress', (e) => { if (e.key === 'Enter') document.getElementById('btn-send-msg').click(); });
+document.getElementById('manual-msg').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('btn-send-msg').click(); });
 
-document.getElementById('btn-close').onclick = async () => {
+// Terminate is destructive: first click arms it, second click within 3 s confirms
+let terminateTimer = null;
+document.getElementById('btn-close').onclick = () => {
+    const btn = document.getElementById('btn-close');
     if (!currentSessionId) return;
-    await fetchAPI(`/api/sessions/${currentSessionId}/close`, { method: 'POST' });
-    pollData();
+    if (!btn.classList.contains('armed')) {
+        btn.classList.add('armed');
+        btn.innerText = 'Confirm Terminate?';
+        terminateTimer = setTimeout(() => { btn.classList.remove('armed'); btn.innerText = 'Terminate'; }, 3000);
+        return;
+    }
+    clearTimeout(terminateTimer);
+    btn.classList.remove('armed');
+    btn.innerText = 'Terminate';
+    withBusy(btn, 'Terminating…', async () => {
+        await fetchAPI(`/api/sessions/${currentSessionId}/close`, { method: 'POST' });
+        pollData();
+    });
 };
 
 setInterval(pollData, 2000);
 pollData();
+
+// Liquid-glass specular highlight follows the pointer
+document.addEventListener('pointermove', (e) => {
+    const el = e.target.closest && e.target.closest('.glass');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    el.style.setProperty('--my', `${e.clientY - r.top}px`);
+});
