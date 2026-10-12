@@ -59,6 +59,15 @@
   .them { align-self: flex-start; background: var(--them); border-bottom-left-radius: 4px; border: 1px solid var(--line); }
   .sys { align-self: center; color: var(--muted); font-size: 12px; background: #1a1714; border-radius: 10px; padding: 4px 10px; }
   .err { align-self: center; color: #ffb4a8; font-size: 13px; }
+  .typing-bubble { display: flex; gap: 5px; align-items: center; padding: 12px 14px; }
+  .typing-bubble i {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--muted); display: block;
+    animation: blink 1.2s infinite ease-in-out;
+  }
+  .typing-bubble i:nth-child(2) { animation-delay: .2s; }
+  .typing-bubble i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+  @media (prefers-reduced-motion: reduce) { .typing-bubble i, .msg { animation: none; } }
   @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   form {
     display: flex; gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
@@ -79,9 +88,9 @@
 <body>
   <div class="tape">Simulation · you are playing the scammer · no real money</div>
   <header>
-    <div class="avatar">K</div>
+    <div class="avatar" id="avatar">K</div>
     <div class="who">
-      <b>Kamala (target)</b>
+      <b id="who-name">Kamala (target)</b>
       <small id="status">online</small>
     </div>
     <button id="new-chat" type="button">New chat</button>
@@ -104,6 +113,46 @@
   const statusEl = document.getElementById("status");
   let sessionId = null;
   let busy = false;
+  let persona = "retired_teacher";
+
+  // Decoy personas (same keys as backend/bot.py PERSONAS and the dashboard)
+  const PERSONAS = {
+    retired_teacher: { name: "Kamala", who: "68 · retired teacher" },
+    busy_shopkeeper: { name: "Ramesh", who: "kirana shop owner" },
+    confused_student: { name: "Priya", who: "college student" },
+  };
+  const personaOf = (k) => PERSONAS[k] || { name: "Target", who: "" };
+  const nameEl = document.getElementById("who-name");
+  const avatarEl = document.getElementById("avatar");
+
+  function setPersona(key) {
+    if (!key || key === "auto") return;
+    persona = key;
+    const p = personaOf(key);
+    nameEl.textContent = p.name + " (target)";
+    avatarEl.textContent = p.name.charAt(0);
+    if (!busy) { statusEl.textContent = p.who ? "online · " + p.who : "online"; statusEl.className = ""; }
+  }
+
+  // While no chat is open, follow the decoy picked on the laptop
+  async function syncDecoy() {
+    if (sessionId) return;
+    try { const d = await api("/api/decoy"); setPersona(d.persona); } catch (e) { /* laptop not reachable yet */ }
+  }
+  setInterval(syncDecoy, 3000);
+
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  let typingEl = null;
+  function showTyping() {
+    if (typingEl) return;
+    typingEl = document.createElement("div");
+    typingEl.className = "msg them typing-bubble";
+    typingEl.setAttribute("aria-label", personaOf(persona).name + " is typing");
+    typingEl.innerHTML = "<i></i><i></i><i></i>";
+    log.appendChild(typingEl);
+    log.scrollTop = log.scrollHeight;
+  }
+  function hideTyping() { if (typingEl) { typingEl.remove(); typingEl = null; } }
 
   const EXAMPLES = [
     ["KYC", "Dear customer your SBI KYC has expired. Update now at sbi-kyc-update.in or your account will be blocked today."],
@@ -169,7 +218,8 @@
   function setBusy(on) {
     busy = on;
     send.disabled = on;
-    statusEl.textContent = on ? "typing…" : "online";
+    const p = personaOf(persona);
+    statusEl.textContent = on ? p.name + " is typing…" : (p.who ? "online · " + p.who : "online");
     statusEl.className = on ? "typing" : "";
   }
 
@@ -186,21 +236,33 @@
   async function sendMessage(msg) {
     setBusy(true);
     bubble("me", msg, new Date().toISOString());
+    const started = Date.now();
+    const typingTimer = setTimeout(showTyping, 500);   // "seen", then starts typing
     try {
       let reply;
       if (!sessionId) {
         const s = await api("/api/sessions", { channel: "whatsapp", persona: "auto", first_message: msg });
         sessionId = s.id;
         store.set(sessionId);
+        setPersona(s.persona);
         reply = s.messages.filter(m => m.role === "bot").pop();
       } else {
         const t = await api(`/api/sessions/${sessionId}/messages`, { text: msg });
         reply = t.bot_reply;
       }
-      if (reply) bubble("them", reply.text, reply.ts);
+      if (reply) {
+        // keep the typing dots up for a believable moment (longer replies take longer to "type")
+        const minMs = Math.min(3500, 1200 + reply.text.length * 25);
+        const wait = minMs - (Date.now() - started);
+        if (wait > 0) { showTyping(); await sleep(wait); }
+        clearTimeout(typingTimer); hideTyping();
+        bubble("them", reply.text, reply.ts);
+      }
     } catch (e) {
+      clearTimeout(typingTimer); hideTyping();
       note("err", "Could not reach the laptop. Is run_demo.bat still running and are you on the same Wi-Fi?");
     } finally {
+      clearTimeout(typingTimer); hideTyping();
       setBusy(false);
       text.focus();
     }
@@ -213,6 +275,7 @@
       const s = await api(`/api/sessions/${saved}`);
       if (s.status === "closed") { store.set(null); return showIntro(); }
       sessionId = s.id;
+      setPersona(s.persona);
       log.innerHTML = "";
       s.messages.forEach(m => bubble(m.role === "scammer" ? "me" : "them", m.text, m.ts));
       if (!s.messages.length) showIntro();
@@ -242,10 +305,10 @@
     }
   });
   document.getElementById("new-chat").onclick = () => {
-    sessionId = null; store.set(null); showIntro(); text.focus();
+    sessionId = null; store.set(null); showIntro(); syncDecoy(); text.focus();
   };
 
-  restore();
+  restore().then(syncDecoy);
 })();
 </script>
 </body>
