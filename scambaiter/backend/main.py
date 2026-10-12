@@ -118,6 +118,8 @@ class Handler(BaseHTTPRequestHandler):
             rel = rel[len("dashboard/"):]
         if rel in ("", "dashboard"):
             rel = "index.html"
+        elif rel in ("scammer", "phone"):
+            rel = "scammer.html"
         full = os.path.realpath(os.path.join(DASHBOARD, rel))
         if not full.startswith(os.path.realpath(DASHBOARD) + os.sep) or not os.path.isfile(full):
             return self._send(404, {"detail": "not found"})
@@ -154,6 +156,27 @@ class Handler(BaseHTTPRequestHandler):
         ])
 
 
+def _lan_ips() -> list[str]:
+    """This laptop's addresses on the local network (for the scammer's phone)."""
+    import socket
+    ips = []
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))  # no packet is sent; just picks the outgoing interface
+        ips.append(s.getsockname()[0])
+        s.close()
+    except OSError:
+        pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ip = info[4][0]
+            if ip not in ips and not ip.startswith(("127.", "169.254.")):
+                ips.append(ip)
+    except OSError:
+        pass
+    return [ip for ip in ips if not ip.startswith("127.")]
+
+
 def main(argv=None) -> None:
     global SERVICE
     ap = argparse.ArgumentParser(description="Scambaiter backend")
@@ -175,6 +198,8 @@ def main(argv=None) -> None:
     print(f"   bot        {'Ollama ' + model if llm == 'ollama' else 'FALLBACK replies (Ollama not reachable or SCAMBAITER_LLM=fallback)'}")
     print(f"   sessions   {len(SERVICE.store.sessions)} loaded from {os.path.relpath(SERVICE.store.path, ROOT)}")
     print(f"   dashboard  http://localhost:{args.port}/")
+    for ip in _lan_ips():
+        print(f"   phone      http://{ip}:{args.port}/scammer   (scammer's phone, same Wi-Fi)")
     print("=" * 64)
     if llm == "ollama":
         threading.Thread(target=bot.warm_up, daemon=True).start()

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#0f0d0b">
+<title>Scammer phone · Scambaiter simulation</title>
+<style>
+  :root {
+    --bg: #0f0d0b; --panel: #1a1714; --line: #2e2924; --text: #f3ece2; --muted: #9a8f83;
+    --red: #ff3b1f; --yellow: #ffd23f; --me: #3a1712; --them: #24201c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column; height: 100dvh;
+  }
+  .tape {
+    background: repeating-linear-gradient(-45deg, var(--yellow) 0 14px, #e6b800 14px 28px);
+    color: #111; font: 700 11px/1 ui-monospace, Consolas, monospace; letter-spacing: .12em;
+    text-align: center; padding: 6px 8px; text-transform: uppercase;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%; background: #3b342d; flex: none;
+    display: grid; place-items: center; font-weight: 700; color: var(--yellow);
+  }
+  .who { flex: 1; min-width: 0; }
+  .who b { display: block; font-size: 16px; }
+  .who small { color: var(--muted); font-size: 12px; }
+  .who small.typing { color: var(--yellow); }
+  #new-chat {
+    background: none; border: 1px solid var(--line); color: var(--text); border-radius: 18px;
+    padding: 7px 12px; font-size: 13px; cursor: pointer;
+  }
+  #log { flex: 1; overflow-y: auto; padding: 14px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
+  .intro {
+    margin: auto 0; text-align: center; color: var(--muted); font-size: 14px; padding: 8px 10px;
+  }
+  .intro h1 { color: var(--text); font-size: 20px; margin-bottom: 6px; }
+  .intro p { margin-bottom: 14px; }
+  .chips { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+  .chip {
+    background: var(--panel); border: 1px dashed #4a4139; color: var(--text); border-radius: 12px;
+    padding: 10px 12px; font-size: 14px; cursor: pointer; text-align: left;
+  }
+  .chip span { display: block; color: var(--yellow); font: 700 10px/1.6 ui-monospace, Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
+  .msg {
+    max-width: 82%; padding: 8px 11px 6px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word;
+    animation: pop .18s ease-out;
+  }
+  .msg time { display: block; text-align: right; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .me { align-self: flex-end; background: var(--me); border-bottom-right-radius: 4px; border: 1px solid #5a2219; }
+  .them { align-self: flex-start; background: var(--them); border-bottom-left-radius: 4px; border: 1px solid var(--line); }
+  .sys { align-self: center; color: var(--muted); font-size: 12px; background: #1a1714; border-radius: 10px; padding: 4px 10px; }
+  .err { align-self: center; color: #ffb4a8; font-size: 13px; }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  form {
+    display: flex; gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: var(--panel); border-top: 1px solid var(--line);
+  }
+  textarea {
+    flex: 1; resize: none; border: 1px solid var(--line); background: var(--bg); color: var(--text);
+    border-radius: 20px; padding: 10px 14px; font: inherit; max-height: 120px; outline: none;
+  }
+  textarea:focus { border-color: var(--red); }
+  button[type=submit] {
+    width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--red); color: #fff;
+    font-size: 20px; cursor: pointer; flex: none; align-self: flex-end;
+  }
+  button[disabled] { opacity: .5; }
+</style>
+</head>
+<body>
+  <div class="tape">Simulation · you are playing the scammer · no real money</div>
+  <header>
+    <div class="avatar">K</div>
+    <div class="who">
+      <b>Kamala (target)</b>
+      <small id="status">online</small>
+    </div>
+    <button id="new-chat" type="button">New chat</button>
+  </header>
+
+  <main id="log" aria-live="polite"></main>
+
+  <form id="form" autocomplete="off">
+    <textarea id="text" rows="1" placeholder="Type your scam message…" aria-label="Message"></textarea>
+    <button type="submit" id="send" aria-label="Send">➤</button>
+  </form>
+
+<script>
+(() => {
+  const API = window.API_BASE || "";
+  const KEY = "scambaiter_phone_session";
+  const log = document.getElementById("log");
+  const text = document.getElementById("text");
+  const send = document.getElementById("send");
+  const statusEl = document.getElementById("status");
+  let sessionId = null;
+  let busy = false;
+
+  const EXAMPLES = [
+    ["KYC", "Dear customer your SBI KYC has expired. Update now at sbi-kyc-update.in or your account will be blocked today."],
+    ["Refund", "Sir your refund of Rs 4999 is approved. Accept the collect request from refund.desk@okaxis to receive the amount."],
+    ["Job", "Part time job! Earn 3000 per day by liking YouTube videos. WhatsApp 9123456780 to start."],
+    ["Police", "This is Mumbai Cyber Police. An FIR is registered against you. Call +91 98765 43210 immediately."],
+  ];
+
+  const store = {
+    get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } },
+    set(v) { try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch (e) {} },
+  };
+  const clock = (iso) => {
+    const d = iso ? new Date(iso) : new Date();
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  function bubble(cls, body, ts) {
+    const intro = log.querySelector(".intro");
+    if (intro) intro.remove();
+    const div = document.createElement("div");
+    div.className = "msg " + cls;
+    div.textContent = body;                       // never innerHTML: messages are untrusted
+    if (ts !== undefined) {
+      const t = document.createElement("time");
+      t.textContent = clock(ts);
+      div.appendChild(t);
+    }
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  }
+  function note(cls, body) {
+    const div = document.createElement("div");
+    div.className = cls;
+    div.textContent = body;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function showIntro() {
+    log.innerHTML = "";
+    const box = document.createElement("div");
+    box.className = "intro";
+    box.innerHTML = "<h1>You are the scammer</h1><p>Send a scam message to the target. Watch the big screen: " +
+                    "the decoy keeps you talking and captures every UPI ID, number and link you share.</p>";
+    const chips = document.createElement("div");
+    chips.className = "chips";
+    EXAMPLES.forEach(([label, msg]) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      const s = document.createElement("span"); s.textContent = "Try: " + label;
+      b.appendChild(s);
+      b.appendChild(document.createTextNode(msg));
+      b.onclick = () => { text.value = msg; autosize(); text.focus(); };
+      chips.appendChild(b);
+    });
+    box.appendChild(chips);
+    log.appendChild(box);
+  }
+
+  function setBusy(on) {
+    busy = on;
+    send.disabled = on;
+    statusEl.textContent = on ? "typing…" : "online";
+    statusEl.className = on ? "typing" : "";
+  }
+
+  async function api(path, body) {
+    const res = await fetch(API + path, {
+      method: body === undefined ? "GET" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
+  }
+
+  async function sendMessage(msg) {
+    setBusy(true);
+    bubble("me", msg, new Date().toISOString());
+    try {
+      let reply;
+      if (!sessionId) {
+        const s = await api("/api/sessions", { channel: "whatsapp", persona: "retired_teacher", first_message: msg });
+        sessionId = s.id;
+        store.set(sessionId);
+        reply = s.messages.filter(m => m.role === "bot").pop();
+      } else {
+        const t = await api(`/api/sessions/${sessionId}/messages`, { text: msg });
+        reply = t.bot_reply;
+      }
+      if (reply) bubble("them", reply.text, reply.ts);
+    } catch (e) {
+      note("err", "Could not reach the laptop. Is run_demo.bat still running and are you on the same Wi-Fi?");
+    } finally {
+      setBusy(false);
+      text.focus();
+    }
+  }
+
+  async function restore() {
+    const saved = store.get();
+    if (!saved) return showIntro();
+    try {
+      const s = await api(`/api/sessions/${saved}`);
+      if (s.status === "closed") { store.set(null); return showIntro(); }
+      sessionId = s.id;
+      log.innerHTML = "";
+      s.messages.forEach(m => bubble(m.role === "scammer" ? "me" : "them", m.text, m.ts));
+      if (!s.messages.length) showIntro();
+    } catch (e) {
+      store.set(null);
+      showIntro();
+    }
+  }
+
+  function autosize() {
+    text.style.height = "auto";
+    text.style.height = Math.min(text.scrollHeight, 120) + "px";
+  }
+
+  document.getElementById("form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const msg = text.value.trim();
+    if (!msg || busy) return;
+    text.value = ""; autosize();
+    sendMessage(msg);
+  });
+  text.addEventListener("input", autosize);
+  text.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(pointer: fine)").matches) {
+      e.preventDefault();
+      document.getElementById("form").requestSubmit();
+    }
+  });
+  document.getElementById("new-chat").onclick = () => {
+    sessionId = null; store.set(null); showIntro(); text.focus();
+  };
+
+  restore();
+})();
+</script>
+</body>
+</html>

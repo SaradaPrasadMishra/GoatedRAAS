@@ -63,14 +63,14 @@ def _analyse(session: Session) -> dict:
 def _fmt_ts(ts: str) -> str:
     """ISO timestamp -> '12 Oct 2026, 05:41:00'. Falls back to the raw string."""
     try:
-        return datetime.fromisoformat(ts.replace("Z", "+00:00")).strftime("%d %b %Y, %H:%M:%S")
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().strftime("%d %b %Y, %H:%M:%S")
     except (ValueError, AttributeError):
         return html.escape(str(ts))
 
 
 def _fmt_clock(ts: str) -> str:
     try:
-        return datetime.fromisoformat(ts.replace("Z", "+00:00")).strftime("%H:%M:%S")
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().strftime("%H:%M:%S")
     except (ValueError, AttributeError):
         return html.escape(str(ts))
 
