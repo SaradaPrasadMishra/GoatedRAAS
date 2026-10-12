@@ -43,6 +43,17 @@ cd GoatedRAAS\scambaiter
 python -m simulator.run --live
 ```
 
+### Is the AI really talking?
+- The backend banner must say `bot Ollama qwen2.5:7b`, and the dashboard badge must say **AI live**.
+  If it says **AI off · canned replies**, the decoy is using about 20 pre-written fallback lines:
+  start the Ollama app, run `ollama pull qwen2.5:7b` (or set `OLLAMA_MODEL` to the model you pulled),
+  and restart the backend. The backend console names the missing model.
+- The scammer side of `--live` is written by the local model when Ollama is running (each line is
+  tagged `[AI]` in terminal 2) and falls back to P4's scripts otherwise (`[script]`). Planted phone
+  numbers and UPI IDs are still revealed on their scheduled turns so the demo always captures them.
+- For a fully unscripted run, type your own scam into the intake slip and keep typing the scammer's
+  lines in the chat box: everything the decoy says comes from the model.
+
 ## Check it
 ```
 python tools/check_contract.py all        # backend running; expect 62 passed, 0 failed

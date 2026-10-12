@@ -81,17 +81,21 @@ def scripted_line(script: GroundTruthScript, turn: int, bot_reply: str, revealed
     return line
 
 def llm_line(script: GroundTruthScript, turn: int, bot_reply: str, revealed: set[str], rng: random.Random, client: httpx.Client) -> str:
-    model = os.getenv("SIM_MODEL", "qwen2.5:1.5b")
+    model = os.getenv("SIM_MODEL") or os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
     allowed = [e for e in entity_tokens(script) if e["value"] not in revealed]
+    # identifiers whose planned reveal turn has come: the AI must say one of them now
+    due = [e for e in allowed if scheduled_turn(script, e) <= turn]
+    must = due[0] if due else None
     system = ("You are a character in a fraud-awareness training simulation. Role-play the synthetic scammer described below. "
               "Never break character. Reveal only identifiers from the allowed list; never invent any identifier, phone, URL, payment ID, email, account, wallet, or code. "
               "Do not request or provide OTPs, PINs, passwords, or real payments. Keep each reply to one short message. "
-              f"Scam type: {script.scam_type}. Style notes: {script.style_notes}. Allowed identifiers to reveal: {json.dumps(allowed)}")
+              f"Scam type: {script.scam_type}. Style notes: {script.style_notes}. Allowed identifiers to reveal: {json.dumps(allowed)}"
+              + (f" In THIS message you must include exactly this {must['type']}: {must['value']}" if must else ""))
     try:
         r = client.post("http://localhost:11434/api/chat", json={"model": model, "stream": False, "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": f"Turn {turn}. The person replied: {bot_reply!r}. Write your next scammer message."}
-        ]}, timeout=8.0)
+        ]}, timeout=20.0)
         r.raise_for_status()
         line = str(r.json().get("message", {}).get("content", "")).strip()
         low = line.lower()
@@ -103,18 +107,32 @@ def llm_line(script: GroundTruthScript, turn: int, bot_reply: str, revealed: set
                 cleaned = match.strip(".,;:!?()")
                 if not any(cleaned in e["value"].lower() or e["value"].lower() in cleaned for e in entity_tokens(script)):
                     raise ValueError("model introduced an unplanted identifier")
+        if must and must["value"].lower() not in low:
+            raise ValueError("model skipped the identifier due this turn")
         for e in allowed:
             if e["value"].lower() in low: revealed.add(e["value"])
+        LAST_SOURCE[0] = "AI"
         return line
     except Exception:
+        LAST_SOURCE[0] = "script"
         return scripted_line(script, turn, bot_reply, revealed, rng)
+
+LAST_SOURCE = ["script"]  # which source produced the last scammer line
+
+def ollama_ready(client: httpx.Client) -> bool:
+    try:
+        r = client.get("http://localhost:11434/api/tags", timeout=2.0)
+        return r.status_code == 200
+    except Exception:
+        return False
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--base-url", default="http://localhost:8000")
     ap.add_argument("--scripts", type=int, default=5)
     ap.add_argument("--turns", type=int, default=6, help="maximum scammer messages, including opening")
-    ap.add_argument("--mode", choices=("scripted", "llm"), default="scripted")
+    ap.add_argument("--mode", choices=("scripted", "llm"), default=None,
+                    help="scammer lines: scripted (default) or llm; --live uses llm when Ollama is running")
     ap.add_argument("--delay", type=float, default=0)
     ap.add_argument("--seed", type=int, default=26)
     ap.add_argument("--live", action="store_true", help="three scripts from one campaign with four-second pacing")
@@ -133,6 +151,13 @@ def main() -> int:
         selected = scripts[:]
         rng.shuffle(selected)
         selected = selected[:max(0, min(args.scripts, len(selected)))]
+    if args.mode is None:
+        args.mode = "scripted"
+        if args.live:
+            with httpx.Client() as probe:
+                if ollama_ready(probe):
+                    args.mode = "llm"
+    print(f"Scammer lines: {'AI (local model, planted identifiers only)' if args.mode == 'llm' else 'pre-written scripts'}")
     base = args.base_url.rstrip("/")
     try: runs = json.loads(RUNS_PATH.read_text(encoding="utf-8")) if RUNS_PATH.exists() else []
     except (OSError, json.JSONDecodeError): runs = []
@@ -154,10 +179,11 @@ def main() -> int:
                     line = llm_line(script, next_turn, bot_reply, revealed, rng, client)
                 else:
                     line = scripted_line(script, next_turn, bot_reply, revealed, rng)
+                    LAST_SOURCE[0] = "script"
                 response = client.post(f"{base}/api/sessions/{sid}/messages", json={"text": line})
                 response.raise_for_status(); turn = response.json()
                 turns_done += 1; bot_reply = turn.get("bot_reply", {}).get("text", "")
-                print(f"[{sid}] {script.id} turn {turns_done}/{args.turns}: {line}")
+                print(f"[{sid}] {script.id} turn {turns_done}/{args.turns} [{LAST_SOURCE[0]}]: {line}")
                 if args.delay: time.sleep(args.delay)
             close = client.post(f"{base}/api/sessions/{sid}/close", json={})
             close.raise_for_status()

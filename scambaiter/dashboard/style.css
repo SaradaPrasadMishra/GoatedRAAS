@@ -143,6 +143,8 @@ body {
 }
 .badge-sim { background: var(--tape); color: var(--ink); box-shadow: none; }
 .badge-health::before { content: "● "; color: #3ddc84; }
+.badge-health.is-off { background: var(--red); color: var(--ink); box-shadow: none; animation: blink 1.6s steps(2) infinite; }
+.badge-health.is-off::before { content: "▲ "; color: var(--ink); }
 .badge-offline { background: var(--red); box-shadow: none; color: var(--ink); animation: blink 1s steps(2) infinite; }
 .hud-clock {
     font-family: var(--mono); font-size: 13px; padding: 6px 12px;
@@ -358,7 +360,7 @@ button:disabled { opacity: 0.6; cursor: progress; transform: none; box-shadow: n
     letter-spacing: 0.1em; margin-bottom: 2px;
 }
 .msg-scammer::before { content: "SCAMMER"; color: var(--red-deep); }
-.msg-bot::before { content: "DECOY · LOCAL AI"; color: var(--muted); text-align: right; }
+.msg-bot::before { content: "DECOY"; color: var(--muted); text-align: right; }
 .message span[style] {
     font-family: var(--mono); font-size: 0.9em; padding: 0 4px;
     border: 1.5px solid currentColor; background: #fff !important;

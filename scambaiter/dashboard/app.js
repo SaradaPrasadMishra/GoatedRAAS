@@ -92,7 +92,11 @@ async function pollData() {
         // 1. Health
         const health = await fetchAPI('/api/health').catch(() => null);
         if (health) {
-            document.getElementById('health-status').innerText = health.llm === 'fallback' ? 'Fallback replies' : `Local model: ${health.model || 'qwen2.5'}`;
+            const live = health.llm !== 'fallback';
+            const badge = document.getElementById('health-status');
+            badge.innerText = live ? `AI live · ${health.model || 'qwen2.5'}` : 'AI off · canned replies';
+            badge.title = live ? 'Decoy replies are written by the local model' : 'Ollama is not reachable or the model is not installed. Start Ollama / run: ollama pull qwen2.5:7b';
+            badge.classList.toggle('is-off', !live);
         }
 
         // 2. Stats

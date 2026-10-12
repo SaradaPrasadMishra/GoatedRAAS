@@ -11,6 +11,7 @@ numbers), never breaks character, and is capped in length.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import random
 import re
@@ -21,6 +22,7 @@ import urllib.request
 
 from contracts.models import Session
 
+log = logging.getLogger("scambaiter")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 TIMEOUT_S = float(os.environ.get("SCAMBAITER_LLM_TIMEOUT", "25"))
 HISTORY = 12  # messages of context sent to the model
@@ -156,6 +158,7 @@ def _sanitize(text: str) -> str | None:
 # --------------------------------------------------------------------------- ollama
 _status_lock = threading.Lock()
 _status_cache: tuple[float, bool] = (0.0, False)
+_warned: set[str] = set()  # models we already warned about
 
 
 def _ollama_up() -> bool:
@@ -168,7 +171,15 @@ def _ollama_up() -> bool:
             return ok
         try:
             with urllib.request.urlopen(OLLAMA_URL + "/api/tags", timeout=2) as r:
-                ok = r.status == 200
+                names = {m.get("name", "") for m in json.loads(r.read().decode("utf-8")).get("models", [])}
+            want = _model()
+            # Ollama lists "qwen2.5:7b"; a bare name means ":latest"
+            ok = want in names or (":" not in want and want + ":latest" in names)
+            if not ok and want not in _warned:
+                _warned.add(want)
+                log.warning("Ollama is running but model %s is not installed (have: %s). "
+                            "Run: ollama pull %s   or set OLLAMA_MODEL. Using canned replies.",
+                            want, ", ".join(sorted(names)) or "none", want)
         except Exception:
             ok = False
         _status_cache = (time.time(), ok)
@@ -226,10 +237,14 @@ def _llm_reply(session: Session, persona: str) -> str | None:
             "model": _model(), "stream": False, "keep_alive": "30m", "messages": msgs,
             "options": {"temperature": 0.8, "num_predict": 120},
         }, timeout=TIMEOUT_S)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
+        log.warning("Ollama reply failed (%s: %s); using a canned reply", type(e).__name__, e)
         _mark_down()
         return None
-    return _sanitize(str(data.get("message", {}).get("content", "")))
+    reply = _sanitize(str(data.get("message", {}).get("content", "")))
+    if reply is None:
+        log.info("model reply failed the safety filter; using a canned reply")
+    return reply
 
 
 def _fallback_reply(session: Session) -> str:
