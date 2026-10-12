@@ -705,5 +705,106 @@
       }
     ],
     "style_notes": "Standalone loan offer; phone and URL in opening; isolated identifiers."
+  },
+  {
+    "id": "gt_036",
+    "scam_type": "loan_app",
+    "campaign_label": "mule_account_H",
+    "opening": "Congratulations, your instant loan of Rs 50,000 is approved. Pay the processing fee of Rs 499 to account 50100234567812, IFSC HDFC0001234 to release it today.",
+    "planted_entities": [
+      {
+        "type": "bank_account",
+        "value": "50100234567812"
+      },
+      {
+        "type": "ifsc",
+        "value": "HDFC0001234"
+      },
+      {
+        "type": "phone",
+        "value": "+919444441000"
+      }
+    ],
+    "style_notes": "Pushy loan agent; bank account and IFSC on turn 1 (opening), phone on turn 2."
+  },
+  {
+    "id": "gt_037",
+    "scam_type": "job_task",
+    "campaign_label": "mule_account_H",
+    "opening": "Your part-time task earnings of Rs 3,200 are ready. To withdraw, first pay a small refundable security deposit. HR will share the details.",
+    "planted_entities": [
+      {
+        "type": "bank_account",
+        "value": "50100234567812"
+      },
+      {
+        "type": "ifsc",
+        "value": "HDFC0001234"
+      },
+      {
+        "type": "upi_id",
+        "value": "hrdesk.payout@ybl"
+      }
+    ],
+    "style_notes": "Friendly HR tone; UPI on turn 2, bank account on turn 3, IFSC on turn 4."
+  },
+  {
+    "id": "gt_038",
+    "scam_type": "investment",
+    "campaign_label": "mule_account_H",
+    "opening": "Double your money in 7 days with our crypto trading plan. Join now with just Rs 5,000 via growthfund@okicici.",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "growthfund@okicici"
+      },
+      {
+        "type": "bank_account",
+        "value": "50100234567812"
+      },
+      {
+        "type": "ifsc",
+        "value": "HDFC0001234"
+      }
+    ],
+    "style_notes": "Hype-driven advisor; UPI on turn 1 (opening), bank account on turn 3, IFSC on turn 3."
+  },
+  {
+    "id": "gt_039",
+    "scam_type": "digital_arrest",
+    "campaign_label": "lone_case_02",
+    "opening": "This is the CBI cyber cell. Your Aadhaar is linked to a money laundering case. Stay on this call and do not inform anyone.",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919333333301"
+      },
+      {
+        "type": "bank_account",
+        "value": "39200188765012"
+      },
+      {
+        "type": "ifsc",
+        "value": "SBIN0004521"
+      }
+    ],
+    "style_notes": "Threatening official tone; phone on turn 2, bank account on turn 3, IFSC on turn 4."
+  },
+  {
+    "id": "gt_040",
+    "scam_type": "refund_collect",
+    "campaign_label": "lone_refund_02",
+    "opening": "Madam your electricity bill refund of Rs 1,850 is pending. Please verify your bank by sending Re 1 so we can credit it.",
+    "planted_entities": [
+      {
+        "type": "bank_account",
+        "value": "77881234990011"
+      },
+      {
+        "type": "ifsc",
+        "value": "UTIB0000456"
+      }
+    ],
+    "style_notes": "Polite helpdesk; bank account on turn 2, IFSC on turn 3."
   }
 ]

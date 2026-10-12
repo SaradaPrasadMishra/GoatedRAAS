@@ -26,6 +26,8 @@ SCAM_KEYWORDS = {
 }
 _KW_RE = {t: [(re.compile(r"(?<![\w])" + re.escape(k) + r"(?![\w])"), w) for k, w in kws] for t, kws in SCAM_KEYWORDS.items()}
 
+_ACCOUNT_KW = re.compile(r"a/c|account|acc\.?\s*no|खाता", re.IGNORECASE)
+
 def _get_raw(original: str, clean_match: str) -> str:
     # Try exact match first
     if clean_match in original:
@@ -78,14 +80,23 @@ def extract_entities(text: str, message_id: str) -> list[Entity]:
             def group(self): return m_str
         add_entity("url", FakeMatch(), conf)
 
-    # 4. Phone (avoiding matches right before @upi)
-    phone_pattern = r"(?<!\d)(?:\+?91[\-\s]?)?(?:0)?(?:91[\-\s]?)?[6-9]\d{4}[\-\s]?\d{5}(?!\s*@upi)"
+    # 4. Phone (avoiding matches right before @upi). (?!\d) stops a longer bank account
+    #    number such as 912010045678123 being read as its first 10-12 digits.
+    #    A number right after "account"/"a/c" is a bank account, not a phone.
+    phone_pattern = r"(?<!\d)(?:\+?91[\-\s]?)?(?:0)?(?:91[\-\s]?)?[6-9]\d{4}[\-\s]?\d{5}(?!\d)(?!\s*@upi)"
     for m in re.finditer(phone_pattern, cleaned):
+        if _ACCOUNT_KW.search(cleaned[max(0, m.start() - 20):m.start()]):
+            continue
         add_entity("phone", m)
 
     # 6. IFSC (whole word only)
     for m in re.finditer(r"\b[A-Z]{4}0[A-Z0-9]{6}\b", cleaned, re.IGNORECASE):
         add_entity("ifsc", m)
+
+    # 7a. Bank account written in groups ("3456 7890 1234"), only right after an account keyword
+    for m in re.finditer(r"(?<!\d)\d{4}(?:[\s-]\d{4}){2,3}(?![\s-]?\d)", cleaned):
+        if _ACCOUNT_KW.search(cleaned[max(0, m.start() - 20):m.start()]):
+            add_entity("bank_account", m, 0.85)
 
     # 7. Bank Account (9-18 digits, checking context)
     for m in re.finditer(r"(?<!\d)\d{9,18}(?!\d)", cleaned):
