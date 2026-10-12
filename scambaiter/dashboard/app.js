@@ -66,7 +66,8 @@ function showToast(msg, isError = false) {
     t.className = isError ? 'toast toast-error' : 'toast';
     t.innerText = msg;
     document.getElementById('toast-container').appendChild(t);
-    setTimeout(() => t.remove(), 5000);
+    // subtle exit: short fade up, then remove
+    setTimeout(() => { t.classList.add('leaving'); setTimeout(() => t.remove(), 160); }, 5000);
 }
 
 // Fetch Wrapper
@@ -204,7 +205,7 @@ function renderStage(session) {
         rest = rest.slice(best.i + best.r.length);
     }
     document.getElementById('stage-text').innerHTML = parts.map((p, i) =>
-        `<span class="w${p.hit ? ' hit' : ''}" style="animation-delay:${(i * 0.07).toFixed(2)}s">${escapeHTML(p.w)}</span>`
+        `<span class="w${p.hit ? ' hit' : ''}" style="animation-delay:${(i * 0.08).toFixed(2)}s">${escapeHTML(p.w)}</span>`
     ).join(' ');
 }
 
