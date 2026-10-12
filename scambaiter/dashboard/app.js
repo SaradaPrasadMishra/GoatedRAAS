@@ -29,7 +29,9 @@ const LAYOUT = { name: 'cose', padding: 34, nodeRepulsion: () => 10000, idealEdg
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // Format seconds to Xh Ym
-const formatTime = (secs) => `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
+const formatTime = (secs) => secs >= 3600
+    ? `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`
+    : `${Math.floor(secs / 60)}m ${secs % 60}s`;
 
 // Initialize Graph
 function initGraph() {
