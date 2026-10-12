@@ -1,45 +1,49 @@
-# Slide content — Scambaiter (6 slides)
+# Slide content — Scambaiter (7 slides)
 
-## 1. Scambaiter: an AI that talks so people don't have to
-- FinTech fraud-awareness prototype — Mission'26
-- P4 demo: synthetic scam conversations → extracted identifiers → possible campaign links → evidence view
-- Tagline: **Keep the conversation. Preserve the evidence. Review before acting.**
-- Footer: **SIMULATION — synthetic data only**
+## 1. Scambaiter
+- **They call. We answer. Slowly.**
+- An offline AI decoy that talks to scammers so real people don't have to, and turns every conversation into evidence.
+- Mission'26 · VIT Chennai SCOPE + BIS · FinTech
+- Footer: **SIMULATION: synthetic data only, no real payments**
 
 ## 2. The problem
-- Scam messages use urgency, authority, easy income, prizes, refunds, or instant credit.
-- A single message rarely shows the wider picture; repeated identifiers across reports can help reveal a possible campaign.
-- Victims need usable evidence and clear next steps, not a bot that makes accusations.
-- Statistic placeholder: **[VERIFY: source]** — insert only a current, dated statistic from an authoritative source, with its definition and geography.
+- **₹22,845.73 crore** reported lost to cyber financial fraud in India in 2024, up from ₹7,465.18 crore in 2023
+  (NCRP + CFCFRMS; MHA reply in Lok Sabha, 22 July 2025).
+- Scams use the same tricks: urgency, fake authority, OTP/PIN requests, "collect requests", prizes and refunds.
+- One message looks harmless. The gang behind it only shows when identifiers repeat across victims.
+- Victims don't know what evidence to keep or how to file it.
 
 ## 3. How it works
-- **Input:** user-provided suspicious message (demo uses synthetic text).
-- **Conversation:** local bot persona keeps the sender engaged without sharing real secrets or making payments.
-- **Extraction:** normalised UPI IDs, phones, URLs, bank-account patterns, IFSCs, emails, and crypto wallets.
-- **Linking:** graph groups sessions that share identifiers; a link is a lead, not proof.
-- **Output:** timeline and evidence report for human review.
-- Diagram in words: `Message → local conversation → entity extraction + normalisation → session/entity graph → reviewable report`.
+`Scam message → local AI decoy keeps them talking → identifiers extracted every turn → gangs linked by shared identifiers → evidence report + ready-to-file complaint`
+- **Decoy:** three personas (retired teacher, shopkeeper, student) on a local open-weight model (Qwen2.5 via Ollama).
+- **Extraction:** UPI IDs, phones, links, bank accounts, IFSC, emails, crypto wallets, normalised.
+- **Linking:** sessions sharing an identifier form a gang on the evidence board.
+- **Explain:** red flags + risk level, so victims learn why it's a scam.
 
-## 4. Live demo
-- Paste one synthetic KYC message.
-- Show the bot reply and identifier extraction.
-- Run `python -m simulator.run --live` to add three sessions from one campaign.
-- Watch the dashboard graph connect sessions sharing identifiers.
-- Open the evidence report and show timestamps, entities, and SIMULATION badge.
-- Fallback plan: deterministic scripted mode if local LLM is slow; saved output if local server is unavailable.
+## 4. Safety by design
+- The decoy never outputs a 4+ digit number: no OTP, PIN or account number can leak.
+- Never sends money, never opens links, never breaks character; canned safe replies if the model misbehaves.
+- Live safety record on every case: "OTP asked 2× · given 0 · payment asked 1× · paid 0".
+- Fully offline: no cloud AI, no API keys, no telemetry. SIMULATION label on every screen.
 
-## 5. Results — report measurements, not promises
-- Entity extraction: precision **[from pitch/metrics.md]**, recall **[from pitch/metrics.md]**, F1 **[from pitch/metrics.md]**.
-- Scam-type accuracy **[from pitch/metrics.md]**.
-- Campaign purity and campaign recall **[from pitch/metrics.md]**.
-- Average scammer turns and time wasted **[from pitch/metrics.md]**.
-- Label the run: mock backend / real backend, date, number of scripts.
-- Note: mock extractor is intentionally simplistic; its scores validate the evaluation pipeline, not real-world efficacy.
+## 5. Live demo
+- Paste a scam → watch the decoy type, identifiers get stamped CAPTURED, red flags appear.
+- Three more scams arrive → the evidence board ties them together with red string: one gang.
+- One click: printable evidence report and a complaint ready for cybercrime.gov.in / 1930.
 
-## 6. Safety, privacy, and standards-minded design
-- **Privacy/data minimisation:** synthetic demo data; store only what is needed for the session and evidence workflow; define retention and access controls before deployment.
-- **Human review:** graph links are leads, not identity proof; review false positives before escalation.
-- **Safety:** no real payments, no opening scam links, no sharing OTP/PIN/passwords, SIMULATION badge on all demo screens.
-- **Offline/open-source direction:** local Ollama model; no ChatGPT/Gemini/Claude API in product; no telemetry.
-- **BIS angle:** reliability, transparent evidence, testable contracts, documented limitations, and human oversight. Do not claim BIS certification or endorsement unless formally confirmed.
-- Close: “We turn isolated suspicious messages into reviewable evidence while keeping the demo safe, local, and synthetic.”
+## 6. Results (measured)
+40 synthetic scam scripts, 7 scam types, 8 gangs, run through the real pipeline:
+
+| Metric | Result |
+|---|---:|
+| Identifier extraction F1 (all 7 types) | 1.00 |
+| Scam-type accuracy | 1.00 |
+| Gang purity / recall | 1.00 / 1.00 (8 of 8) |
+
+Synthetic scripts the extractor was tuned on: expect lower numbers on real messages. Testing on real reported scams is next.
+
+## 7. What's next
+- Forward scams straight from WhatsApp / SMS.
+- Share gang identifiers with banks and I4C so mule accounts get frozen faster.
+- Regional languages (Tamil, Hindi, Telugu) for the decoy and the red-flag explainer.
+- Close: **Scammers waste our time every day. Scambaiter wastes theirs.**

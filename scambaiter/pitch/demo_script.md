@@ -1,45 +1,65 @@
 # Scambaiter — timed 3-minute demo script
 
-> **Before the room:** start the backend and dashboard; keep the terminal ready. Run `python -m simulator.run --live` only when the dashboard is visible. Use synthetic messages only. Every screen/session must retain its **SIMULATION** badge.
+> **Before the room (10 min early):**
+> 1. Terminal 1: `python -m backend.main --reset`. The banner must say `bot Ollama qwen2.5:7b`.
+> 2. Open `http://localhost:8000`, press the full-screen button (or F11). The badge top-right must say **AI live**.
+> 3. Terminal 2 ready with `python -m simulator.run --live` typed but not run.
+> 4. Copy this scam into your clipboard for step 0:45:
+>    `URGENT: Your SBI account will be blocked today. Share the OTP and pay Rs 10 to sbi.kyc@okaxis or call 9876543210`
+>
+> Every screen keeps the yellow **SIMULATION** label. Synthetic messages only.
 
 ## 0:00–0:20 — Hook
 
-**Say:** “Imagine receiving this message: *‘URGENT: KYC pending. Account services may pause today. Verify at verify-kyc-river.in/update.’* A person who is worried about losing access may click quickly, reply, or send money. The point is not that every suspicious message is identical; it is that one message can be part of a larger operation.”
+**Say:** "Indians reported losing **₹22,845 crore** to cyber financial fraud in 2024, three times the year before
+(Ministry of Home Affairs, Lok Sabha, 22 July 2025). Every one of those scams started with a message like this one.
+What if, instead of the victim, an AI answered?"
 
-**Victim story:** “Picture a fictional customer who receives a fake KYC message, then a second message from a different number. They may look unrelated until an identifier connects them.” This is a synthetic example, not a real victim case.
+## 0:20–0:45 — The idea
 
-## 0:20–0:45 — Problem and why it matters
+**Say:** "Scambaiter is a decoy. You forward the scam, and a local AI pretends to be a slow, trusting person. It keeps
+the scammer busy, and every message they send leaks evidence: UPI IDs, phone numbers, bank accounts, links.
+When two scams use the same account, we've found a gang."
 
-**Say:** “Indian cyber-fraud reporting channels exist, but people still have to recognise a scam, preserve evidence, and act quickly. We will not quote an unverified loss figure: add a verified government or other authoritative statistic here only after checking its source and year. **[VERIFY: source — current official Indian cybercrime/fraud-loss statistic, publication date, and definition]**. We are demonstrating a workflow, not claiming a measured reduction in fraud.”
+Point at the caution tape: "Everything runs offline on this laptop, with an open-source model. No cloud AI, no real money."
 
-## 0:45–1:10 — Show the product
+## 0:45–1:30 — Live: talk to the decoy (proves it's real AI)
 
-1. Open the local dashboard at `http://localhost:8000`.
-2. Point to the visible **SIMULATION** badge and say: “This is a local, synthetic-data demonstration. No real person is contacted and no money is moved.”
-3. Paste the synthetic KYC opening from `simulator/scripts.json` into the demo input and start a session.
-4. Say: “The bot plays a slow, confused persona rather than arguing with the sender. Each turn can expose identifiers for extraction.”
+1. In the **Intake slip**, pick **Decoy: Kamala, 68, retired teacher**, paste the scam, press **Engage Decoy**.
+2. While "**Kamala is typing…**" shows, **say:** "That's the model on this laptop writing a reply, not a script."
+3. Point at the big line: the UPI ID and phone get stamped **CAPTURED**.
+4. Point at **Red flags**: "It also tells a victim *why* this is a scam: urgency, an OTP request, fake bank authority."
+   Point at **Safety**: "OTP asked twice, given zero. Payment asked, paid zero. It never hands anything over."
+5. Type one more scammer line in the chat box, e.g. `Madam do not tell anyone, send OTP fast or police case will be filed`,
+   press **Transmit**. New red flags appear: Threat, Secrecy.
 
-## 1:10–2:15 — Live campaign demo
+*Optional (if time):* start a second case with **Decoy: Priya, college student** and the same scam to show a different personality.
 
-1. In a terminal at the repository root, run: `python -m simulator.run --live`.
-2. Say: “This runs three scripted messages from one synthetic campaign, with four-second pacing so the dashboard can poll and refresh.”
-3. On the dashboard, show the new sessions arriving. Point to entity identifiers as they appear.
-4. Say: “The graph should connect sessions only when they share identifiers. One shared identifier is evidence for a possible link, not proof of who is behind it.”
-5. Open a session and click its evidence/report action. Point out the timeline, extracted identifiers, and **SIMULATION** label.
-6. If the dashboard does not update, refresh once and continue from the graph/report. Do not imply a missing edge was detected.
+## 1:30–2:10 — Live: catch a gang
 
-## 2:15–2:40 — Metrics
+1. Terminal 2: run `python -m simulator.run --live`. Three scams arrive four seconds apart, each answered by a different decoy.
+2. **Say:** "These three look unrelated: different wording, different times. Watch the evidence board."
+3. When the red string connects them: "They share one phone number. That's one gang, and the counter says so: **Gangs linked: 1**."
+4. Point at **Scammer time wasted** counting up: "Every second here is a second they aren't spending on a real victim."
 
-Open `pitch/metrics.md`, generated with `python -m simulator.evaluate --md`. Read the measured entity F1, scam-type accuracy, campaign purity/recall, average turns, and time wasted. **Use the current file values only.** Explain: “The mock extractor is intentionally dumb, so mock metrics are a plumbing check, not a claim about production accuracy.” Do not invent targets or substitute a previous run's numbers.
+## 2:10–2:35 — The victim's takeaway
 
-## 2:40–3:00 — Safety and close
+1. Click **Report**: the printable evidence report with identifiers, red flags, safety record and transcript.
+2. Click **Complaint**: "One click copies a ready-to-paste complaint for cybercrime.gov.in. A victim can file in 30 seconds instead of 30 minutes."
 
-**Say:** “The prototype is designed for local operation: open-source components, a local Ollama model where enabled, synthetic data, no real payments, no cloud LLM API, and human review before evidence is acted on. We aim to help preserve context and surface possible links, not automatically accuse anyone. The next step is testing false positives and validating reports with appropriate reviewers.”
+## 2:35–3:00 — Results and close
 
-## If the LLM is slow
+**Say (numbers from `pitch/metrics.md`, 40 synthetic scam scripts through the real pipeline):**
+"Identifier extraction F1 **1.00** across all seven identifier types, scam-type accuracy **1.00**, gang purity and recall **1.00**, 8 of 8 gangs found.
+These are synthetic test scripts, so real-world numbers will be lower; that's the next thing we'd measure."
 
-Say: “The local model is optional. This run is using deterministic scripted fallback so the demo stays repeatable and offline.” Continue; do not wait more than a few seconds for generation.
+**Close:** "Scammers waste our time every day. Scambaiter wastes theirs, and turns every conversation into evidence."
+
+## If the AI is slow or the badge says "AI off"
+
+Say: "The decoy can fall back to safe canned replies, so the demo never stalls." Continue; extraction, red flags,
+gang linking, the report and the complaint all work the same. Fix afterwards: open the Ollama app and restart the backend.
 
 ## If Wi-Fi dies
 
-Say: “That is expected to be survivable: the app and model are local once installed.” Keep the local server and dashboard open; use `--mode scripted` or the already-generated `runs.json`/`pitch/metrics.md`. If the local server itself is down, show the synthetic scripts and previously generated metrics, clearly labelled as recorded output rather than a live run.
+Nothing changes: the app, the model and the dashboard are all local.
