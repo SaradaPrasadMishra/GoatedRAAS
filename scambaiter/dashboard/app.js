@@ -40,6 +40,7 @@ const personaOf = (key) => PERSONAS[key] || { name: 'Decoy', who: 'Decoy' };
 // Red flags, risk, safety record and money for the open case come from the backend
 // (report/analysis.py), so the dashboard, the report and the quick check always agree.
 let currentAnalysis = null;
+let replayIds = new Set(), replayNames = [];
 const rupees = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
 function renderIntel(session, a) {
@@ -88,6 +89,10 @@ function initGraph() {
         layout: LAYOUT,
         minZoom: 0.4, maxZoom: 1.4
     });
+    // click anything that belongs to a gang to open its dossier
+    cy.on('tap', 'node', (e) => { const c = e.target.data('campaign'); if (c) openDossier(c); });
+    cy.on('mouseover', 'node', (e) => { document.getElementById('cy').style.cursor = e.target.data('campaign') ? 'pointer' : ''; });
+    cy.on('mouseout', 'node', () => { document.getElementById('cy').style.cursor = ''; });
 }
 
 // Show Toast
@@ -137,11 +142,13 @@ function tick() {
             ? s.time_wasted_seconds + liveExtra({ ...s, created_at: s.messages[0]?.ts || s.created_at }, now)
             : s.time_wasted_seconds;
         meta.hidden = false;
-        document.getElementById('call-persona').textContent = 'as ' + personaOf(s.persona).name;
+        document.getElementById('btn-save-replay').hidden = false;
+        document.getElementById('call-persona').textContent = (replayIds.has(s.id) ? '▶ REPLAY · ' : '') + 'as ' + personaOf(s.persona).name;
         document.getElementById('call-persona').title = personaOf(s.persona).who;
         document.getElementById('call-timer').textContent = (s.status === 'active' ? 'on call ' : 'closed after ') + formatClock(secs);
     } else {
         meta.hidden = true;
+        document.getElementById('btn-save-replay').hidden = true;
     }
 }
 setInterval(tick, 1000);
@@ -177,6 +184,8 @@ async function pollData() {
         // 3. Sessions list
         const sessions = await fetchAPI('/api/sessions');
         lastSessions = sessions;
+        const rp = await fetchAPI('/api/replays').catch(() => null);
+        if (rp) { replayIds = new Set(rp.replay_sessions); replayNames = rp.recordings; }
         // Auto-follow: when a brand-new case arrives (e.g. from the scammer's phone), switch to it
         const ids = new Set(sessions.map(s => s.id));
         if (knownSessionIds !== null) {
@@ -232,7 +241,7 @@ let lastListKey = '';
 function renderSessionList(sessions) {
     const container = document.getElementById('session-list');
     // Re-render only when something changed, so keyboard focus survives polling
-    const key = currentSessionId + '|' + JSON.stringify(sessions);
+    const key = currentSessionId + '|' + [...replayIds].join(',') + '|' + JSON.stringify(sessions);
     if (key === lastListKey) return;
     lastListKey = key;
     const hadFocus = container.contains(document.activeElement) ? document.activeElement.dataset.id : null;
@@ -253,7 +262,7 @@ function renderSessionList(sessions) {
         let cBadge = s.campaign_id ? `<span class="chip chip-campaign" style="border-color: ${cColor}; color: ${cColor}">GANG ${escapeHTML(s.campaign_id)}</span>` : '';
         
         div.innerHTML = `
-            <div class="case-no">CASE #${escapeHTML(s.id.replace(/^s_/, '').toUpperCase())}</div>
+            <div class="case-no">CASE #${escapeHTML(s.id.replace(/^s_/, '').toUpperCase())}${replayIds.has(s.id) ? ' <span class="replay-tag">▶ REPLAY</span>' : ''}</div>
             <div>
                 <span class="chip">${escapeHTML(s.scam_type.replace(/_/g, ' '))}</span>
                 ${cBadge}
@@ -274,6 +283,7 @@ function renderStage(session) {
     const last = [...session.messages].reverse().find(m => m.role === 'scammer');
     if (!last) { stage.hidden = true; lastStageId = null; return; }
     stage.hidden = false;
+    document.querySelector('#stage .stage-label').textContent = replayIds.has(session.id) ? 'Replay of a recorded case · scammer says' : 'Scammer says';
     const stageKey = session.id + '|' + last.id + '|' + session.entities.length;
     if (stageKey === lastStageId) return;
     lastStageId = stageKey;
@@ -390,11 +400,11 @@ function updateGraph(data) {
         const color = n.type === 'session' ? getCampaignColor(n.campaign_id) : (COLORS[n.type] || '#9ca3af');
         if (!currentIds.has(n.id)) {
             changed = true;
-            newElements.push({ group: 'nodes', data: { id: n.id, label: n.label, type: n.type, color: color, shared: sharedEntities.has(n.id) } });
+            newElements.push({ group: 'nodes', data: { id: n.id, label: n.label, type: n.type, color: color, shared: sharedEntities.has(n.id), campaign: n.campaign_id || null } });
         } else {
             const node = cy.getElementById(n.id);
-            if (node.data('color') !== color || node.data('shared') !== sharedEntities.has(n.id)) {
-                node.data({ color: color, shared: sharedEntities.has(n.id) });
+            if (node.data('color') !== color || node.data('shared') !== sharedEntities.has(n.id) || node.data('campaign') !== (n.campaign_id || null)) {
+                node.data({ color: color, shared: sharedEntities.has(n.id), campaign: n.campaign_id || null });
             }
         }
     });
@@ -644,3 +654,75 @@ const closeCheck = () => { document.getElementById('check-panel').hidden = true;
 document.getElementById('check-close').onclick = closeCheck;
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCheck(); });
 document.getElementById('check-engage').onclick = () => { closeCheck(); document.getElementById('btn-create-session').click(); };
+
+// ---------------------------------------------------------------- gang dossier
+const fmtDate = (iso) => iso ? TS_FMT.format(new Date(iso)) : '-';
+let openGang = null;
+
+async function openDossier(cid) {
+    let d;
+    try { d = await fetchAPI(`/api/campaigns/${cid}/dossier`); }
+    catch (e) { showToast('Could not load that gang. Is the backend running?', true); return; }
+    openGang = d;
+    document.getElementById('gang-title').textContent = 'Gang ' + d.id.toUpperCase();
+    document.getElementById('gang-sub').textContent =
+        `${d.dominant_scam_type.replace(/_/g, ' ')} · first seen ${fmtDate(d.first_seen)} · last seen ${fmtDate(d.last_seen)}`;
+    document.getElementById('gang-stats').innerHTML = [
+        [d.size, plural(d.size, 'case').replace(/^\d+ /, '')],
+        [d.identifiers.length, 'identifiers'],
+        [rupees(d.demanded), 'demanded'],
+        [formatTime(d.time_wasted_seconds), 'wasted'],
+    ].map(([v, k]) => `<div><b>${escapeHTML(String(v))}</b><span>${k}</span></div>`).join('');
+    document.getElementById('gang-ids').innerHTML = d.identifiers.map(i =>
+        `<li class="${i.shared ? 'shared' : ''}"><span class="t" style="color:${COLORS[i.type] || '#16130f'}">${escapeHTML(LABEL[i.type] || i.type)}</span>` +
+        `<code>${escapeHTML(i.value)}</code><span class="n">${i.shared ? 'links ' : ''}${plural(i.cases, 'case')}</span></li>`).join('');
+    document.getElementById('gang-cases').innerHTML = d.cases.map(c =>
+        `<li><button type="button" data-id="${escapeHTML(c.id)}">#${escapeHTML(c.id.replace(/^s_/, '').toUpperCase())}` +
+        ` · ${escapeHTML(c.scam_type.replace(/_/g, ' '))} · ${escapeHTML(c.channel)}${c.demanded ? ' · ' + rupees(c.demanded) : ''}${c.replay ? ' · replay' : ''}</button></li>`).join('');
+    document.querySelectorAll('#gang-cases button').forEach(b => b.onclick = () => { closeDossier(); selectSession(b.dataset.id); });
+    document.getElementById('gang-panel').hidden = false;
+    document.getElementById('gang-close').focus();
+}
+function closeDossier() { document.getElementById('gang-panel').hidden = true; openGang = null; }
+document.getElementById('gang-close').onclick = closeDossier;
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDossier(); });
+
+// CSV a bank fraud desk or I4C can load: one row per identifier
+document.getElementById('gang-export').onclick = () => {
+    const d = openGang;
+    if (!d) return;
+    const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const rows = [['gang', 'identifier_type', 'value', 'cases', 'links_cases', 'first_seen', 'last_seen', 'scam_type', 'note']];
+    d.identifiers.forEach(i => rows.push([d.id, i.type, i.value, i.cases, i.shared ? 'yes' : 'no', d.first_seen, d.last_seen,
+        d.dominant_scam_type, 'SIMULATION - machine-extracted, verify before action']));
+    const blob = new Blob([rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n'], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `scambaiter-gang-${d.id}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast(`Gang ${d.id.toUpperCase()}: ${plural(d.identifiers.length, 'identifier')} exported for bank / I4C`);
+};
+
+// ---------------------------------------------------------------- backup replay
+// "Save for replay" records the open case (do it in rehearsal, with the real AI on).
+// Shift+R on stage replays the newest recording as a new case, clearly labelled REPLAY.
+document.getElementById('btn-save-replay').onclick = () => {
+    if (!currentSessionId) return;
+    withBusy(document.getElementById('btn-save-replay'), 'Saving…', async () => {
+        const r = await fetchAPI(`/api/sessions/${currentSessionId}/save-replay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        showToast(`Saved for replay (${plural(r.turns, 'turn')}, AI was ${r.llm === 'ollama' ? 'live' : 'off'}). Shift+R replays it.`);
+    });
+};
+document.addEventListener('keydown', async (e) => {
+    if (!(e.shiftKey && (e.key === 'R' || e.key === 'r'))) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+    e.preventDefault();
+    try {
+        const r = await fetchAPI('/api/replays', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        showToast(`▶ Replaying a recorded case (${plural(r.turns, 'turn')})`);
+        selectSession(r.session_id);
+    } catch (err) {
+        showToast('No recording yet. In rehearsal, open a good case and press "Save".', true);
+    }
+});

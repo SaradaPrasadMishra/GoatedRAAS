@@ -54,6 +54,13 @@ python -m simulator.run --live
 - For a fully unscripted run, type your own scam into the intake slip and keep typing the scammer's
   lines in the chat box: everything the decoy says comes from the model.
 
+### Handy on stage
+- **Sample scams:** one-click KYC, digital arrest, job task, Hinglish and Tamil on the intake slip.
+- **Just check: is this a scam?** gives a verdict and the red flags without starting a decoy.
+- **Gang dossier:** click a gang on the evidence board; export its identifiers as CSV for a bank or I4C.
+- **Backup replay:** in rehearsal, open a good live-AI case and click *save for replay*; on stage press **Shift+R**
+  to replay it (labelled REPLAY). Recordings stay on the laptop in `scambaiter/data/replays/`.
+
 ## Check it
 ```
 python tools/check_contract.py all        # backend running; expect 62 passed, 0 failed

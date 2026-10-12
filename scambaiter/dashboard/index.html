@@ -115,6 +115,7 @@
                 <div class="chat-title">
                     <h2 id="h-chat"><i class="rec"></i>On the line</h2>
                     <div class="call-meta" id="call-meta" hidden><span id="call-persona"></span> · <span id="call-timer">0:00</span></div>
+                    <button id="btn-save-replay" class="meta-link" type="button" hidden title="Save this case as a backup replay. Shift+R plays the newest one.">save for replay</button>
                 </div>
                 <div class="chat-actions" id="chat-actions" style="display: none;">
                     <a href="#" target="_blank" id="btn-report" class="btn btn-primary" title="Printable evidence report">Report</a>
@@ -161,7 +162,21 @@
 
         <!-- Right: evidence board -->
         <section class="col-right" aria-labelledby="h-graph">
-            <h2 id="h-graph">Evidence board</h2>
+            <h2 id="h-graph">Evidence board <small class="h-hint">click a gang for its dossier</small></h2>
+            <div class="gang-panel" id="gang-panel" role="dialog" aria-labelledby="gang-title" hidden>
+                <div class="check-head">
+                    <span class="stage-label">Gang dossier</span>
+                    <button type="button" class="check-x" id="gang-close" aria-label="Close">✕</button>
+                </div>
+                <h3 class="gang-title" id="gang-title"></h3>
+                <div class="gang-sub" id="gang-sub"></div>
+                <div class="gang-stats" id="gang-stats"></div>
+                <div class="gang-k">Identifiers <span>(red = links cases together)</span></div>
+                <ul class="gang-ids" id="gang-ids"></ul>
+                <div class="gang-k">Cases</div>
+                <ul class="gang-cases" id="gang-cases"></ul>
+                <button type="button" id="gang-export">Export for bank / I4C (CSV)</button>
+            </div>
             <div class="graph-frame">
                 <span class="pin pin-a"></span><span class="pin pin-b"></span>
                 <div id="cy" role="img" aria-label="Evidence board linking scam cases that share identifiers"></div>

@@ -145,6 +145,8 @@ class Handler(BaseHTTPRequestHandler):
             (r"/api/stats", lambda: self._send(200, S.stats())),
             (r"/api/decoy", lambda: self._send(200, S.decoy())),
             (r"/api/money", lambda: self._send(200, S.money())),
+            (r"/api/replays", lambda: self._send(200, S.replays())),
+            (r"/api/campaigns/(c_[0-9]+)/dossier", lambda cid: self._send(200, S.dossier(cid))),
             (rf"/api/sessions/{_SESSION}/analysis", lambda sid: self._send(200, S.analysis(sid))),
         ])
 
@@ -158,6 +160,8 @@ class Handler(BaseHTTPRequestHandler):
             (r"/api/admin/reset", lambda: (self._body(), S.reset(), self._send(200, {"ok": True}))),
             (r"/api/decoy", lambda: self._send(200, S.set_decoy(self._body()))),
             (r"/api/check", lambda: self._send(200, S.check(self._body()))),
+            (r"/api/replays", lambda: self._send(200, S.start_replay(self._body()))),
+            (rf"/api/sessions/{_SESSION}/save-replay", lambda sid: (self._body(), self._send(200, S.save_replay(sid)))),
         ])
 
 

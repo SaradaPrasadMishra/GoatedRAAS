@@ -58,6 +58,18 @@ These are synthetic test scripts, so real-world numbers will be lower; that's th
 
 **Close:** "Scammers waste our time every day. Scambaiter wastes theirs, and turns every conversation into evidence."
 
+## Backup replay (set up in rehearsal)
+
+During rehearsal, with the badge on **AI live**, run a good conversation, open it and click **save for replay**
+(under "as Kamala · on call"). Then restart with `--reset`. On stage, if the model is slow or down, click on an empty part
+of the page and press **Shift+R**: the recorded conversation replays at real pace as a new case. It is labelled
+**▶ REPLAY** everywhere. Say so: "This is a recording of the live AI from our rehearsal."
+
+## Gang dossier (if asked "what would police do with this?")
+
+Click any red-string case or identifier on the evidence board: the gang's dossier opens with every identifier, the
+cases it links, money demanded and time wasted. **Export for bank / I4C (CSV)** downloads one row per identifier.
+
 ## If the AI is slow or the badge says "AI off"
 
 Say: "The decoy can fall back to safe canned replies, so the demo never stalls." Continue; extraction, red flags,

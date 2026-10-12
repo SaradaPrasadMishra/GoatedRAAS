@@ -5,8 +5,12 @@ from backend/stubs.py is used and the startup log says so.
 """
 from __future__ import annotations
 
+import json
 import logging
+import os
+import re
 import threading
+import time
 
 from contracts.models import (CONTRACT_VERSION, CreateSessionRequest, Graph, Health, Message, Session,
                               SessionSummary, Stats, TurnResponse)
@@ -54,6 +58,9 @@ class Service:
         self.store = store or Store()
         # decoy for new cases that don't name one (e.g. the scammer's phone page); set from the dashboard
         self.default_persona = "retired_teacher"
+        # backup replays: recordings live in data/replays/; ids of cases that are replays (shown as REPLAY)
+        self.replay_dir = os.path.join(os.path.dirname(self.store.path), "replays")
+        self.replay_ids: set[str] = set()
         self._graph_lock = threading.Lock()
         self._graph: Graph | None = None
         self._graph_version = -1
@@ -103,7 +110,7 @@ class Service:
             self.turn(s.id, req.first_message)
         return self._require(s.id)
 
-    def turn(self, sid: str, text: str) -> TurnResponse:
+    def turn(self, sid: str, text: str, reply_override: str | None = None, reply_delay: float = 0.0) -> TurnResponse:
         text = (text or "").strip()[:4000]
         if not text:
             raise ValueError("text must not be empty")
@@ -123,8 +130,13 @@ class Service:
             s.time_wasted_seconds = time_wasted(s)
             self.store.save(s)  # dashboard sees the scammer message + entities immediately
 
-            # 4: bot reply (may take a few seconds with the LLM; store is not locked meanwhile)
-            reply = bot.generate_reply(s, s.persona)
+            # 4: bot reply (may take a few seconds with the LLM; store is not locked meanwhile).
+            #    A replay supplies the recorded reply instead, after a short "typing" pause.
+            if reply_override is not None:
+                time.sleep(reply_delay)
+                reply = reply_override
+            else:
+                reply = bot.generate_reply(s, s.persona)
             bm = Message(id=new_id("m_"), session_id=sid, role="bot", text=reply, ts=now_iso())
             s = self._require(sid)
             s.messages.append(bm)
@@ -212,6 +224,99 @@ class Service:
         return {"scam_type": self._safe_classify(text), "level": level, "flags": flags,
                 "entities": [e.model_dump() for e in entities],
                 "demanded": sum(demanded_amounts(text)) if demanded_amounts else 0}
+
+    # ------------------------------------------------------------------ gang dossier
+    def dossier(self, cid: str) -> dict:
+        """Everything about one gang: its cases, identifiers, money asked for and time wasted."""
+        g = self.graph()
+        camp = next((c for c in g.campaigns if c.id == cid), None)
+        if camp is None:
+            raise NotFound(cid)
+        shared = set(camp.shared_entities)
+        cases, ids = [], {}
+        for sid in camp.session_ids:
+            s = self.store.get(sid)
+            if s is None:
+                continue
+            a = analyse_session(s) if analyse_session else {"demanded": 0, "level": "LOW"}
+            cases.append({"id": s.id, "scam_type": s.scam_type, "channel": s.channel, "persona": s.persona,
+                          "created_at": s.created_at, "time_wasted_seconds": s.time_wasted_seconds,
+                          "demanded": a["demanded"], "level": a["level"], "replay": s.id in self.replay_ids})
+            for e in s.entities:
+                key = f"{e.type}:{e.value}"
+                ids.setdefault(key, {"type": e.type, "value": e.value, "cases": 0, "shared": key in shared})
+                ids[key]["cases"] += 1
+        cases.sort(key=lambda c: c["created_at"])
+        identifiers = sorted(ids.values(), key=lambda i: (not i["shared"], -i["cases"], i["type"]))
+        return {"id": camp.id, "size": camp.size, "dominant_scam_type": camp.dominant_scam_type,
+                "cases": cases, "identifiers": identifiers,
+                "time_wasted_seconds": sum(c["time_wasted_seconds"] for c in cases),
+                "demanded": sum(c["demanded"] for c in cases),
+                "first_seen": cases[0]["created_at"] if cases else None,
+                "last_seen": cases[-1]["created_at"] if cases else None}
+
+    # ------------------------------------------------------------------ backup replay
+    def save_replay(self, sid: str) -> dict:
+        """Save a case (ideally a good live AI conversation from rehearsal) to replay on stage."""
+        s = self._require(sid)
+        turns, prev = [], None
+        msgs = s.messages
+        for i, m in enumerate(msgs):
+            if m.role != "scammer":
+                continue
+            reply = msgs[i + 1].text if i + 1 < len(msgs) and msgs[i + 1].role == "bot" else ""
+            gap = 0.0
+            if prev is not None:
+                from backend.store import parse_iso
+                gap = max(0.0, (parse_iso(m.ts) - parse_iso(prev)).total_seconds())
+            turns.append({"scammer": m.text, "bot": reply, "gap_s": round(gap, 1)})
+            prev = m.ts
+        if not turns or not any(t["bot"] for t in turns):
+            raise ValueError("this case has no decoy replies to record yet")
+        os.makedirs(self.replay_dir, exist_ok=True)
+        name = re.sub(r"[^a-z0-9_]+", "_", f"{s.scam_type}_{s.id}".lower())
+        rec = {"saved_from": s.id, "llm": bot.llm_status()[0], "channel": s.channel, "persona": s.persona,
+               "scam_type": s.scam_type, "turns": turns}
+        with open(os.path.join(self.replay_dir, name + ".json"), "w", encoding="utf-8") as f:
+            json.dump(rec, f, ensure_ascii=False, indent=2)
+        return {"saved": name, "turns": len(turns), "llm": rec["llm"]}
+
+    def replays(self) -> dict:
+        names = []
+        if os.path.isdir(self.replay_dir):
+            files = [f for f in os.listdir(self.replay_dir) if f.endswith(".json")]
+            files.sort(key=lambda f: os.path.getmtime(os.path.join(self.replay_dir, f)), reverse=True)
+            names = [f[:-5] for f in files]
+        return {"recordings": names, "replay_sessions": sorted(self.replay_ids)}
+
+    def start_replay(self, body: dict) -> dict:
+        """Replay a recording as a new case at real pace (2-6 s between scammer messages)."""
+        names = self.replays()["recordings"]
+        name = body.get("name") or (names[0] if names else None)
+        if not name or name not in names:
+            raise ValueError("no recording yet: open a good case and press 'Save for replay' during rehearsal")
+        with open(os.path.join(self.replay_dir, name + ".json"), encoding="utf-8") as f:
+            rec = json.load(f)
+        persona = rec.get("persona") if rec.get("persona") in bot.PERSONAS else self.default_persona
+        channel = rec.get("channel") if rec.get("channel") in ("sms", "whatsapp", "telegram", "call_transcript", "simulator") else "simulator"
+        s = Session(id=new_id("s_"), created_at=now_iso(), channel=channel, persona=persona,
+                    scam_type="unknown", status="active", messages=[], entities=[],
+                    time_wasted_seconds=0, is_simulation=True)
+        self.replay_ids.add(s.id)
+        self.store.save(s)
+        turns = rec.get("turns", [])
+
+        def run():
+            try:
+                for i, t in enumerate(turns):
+                    if i:
+                        time.sleep(min(6.0, max(2.0, float(t.get("gap_s") or 0))))
+                    self.turn(s.id, t["scammer"], reply_override=t.get("bot") or "", reply_delay=1.5)
+                self.close(s.id)
+            except Exception:  # noqa: BLE001
+                log.exception("replay %s failed", name)
+        threading.Thread(target=run, daemon=True).start()
+        return {"session_id": s.id, "recording": name, "turns": len(turns), "recorded_with": rec.get("llm")}
 
     def decoy(self) -> dict:
         return {"persona": self.default_persona, "personas": list(bot.PERSONAS)}

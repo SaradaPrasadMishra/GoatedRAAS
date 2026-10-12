@@ -21,7 +21,7 @@ RED_FLAGS: list[tuple[str, re.Pattern]] = [(name, re.compile(rx, re.I)) for name
                        r"|bank (official|manager|head office)|kyc (team|department)|sbi|hdfc|icici|amazon|flipkart"
                        r"|electricity board|paytm|phonepe|gpay|google pay)\b|காவல்|வங்கி"),
     ("Threat", r"\b(block(ed)?|suspend(ed)?|arrest|legal action|penalty|freeze|frozen|disconnect(ed)?|fir|warrant"
-               r"|money laundering|case (is )?(registered|filed)|band ho)\b|முடக்க|கைது"),
+               r"|money laundering|case (is )?(registered|filed)|restrict(ed|ion)?|band ho)\b|முடக்க|கைது"),
     ("Too good to be true", r"\b(won|winner|lottery|prize|reward|cashback|double|guaranteed|profit|returns?"
                             r"|loan (is )?approved|earn(ings)?|bonus|refund)\b|பரிசு"),
     ("Secrecy", r"\b(do not (tell|inform|share with)|don'?t tell|keep (it|this) (secret|confidential)"
