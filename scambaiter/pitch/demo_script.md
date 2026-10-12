@@ -4,7 +4,7 @@
 > 1. Terminal 1: `python -m backend.main --reset`. The banner must say `bot Ollama qwen2.5:7b`.
 > 2. Open `http://localhost:8000`, press the full-screen button (or F11). The badge top-right must say **AI live**.
 > 3. Terminal 2 ready with `python -m simulator.run --live` typed but not run.
-> 4. No copy-paste needed: the intake slip has one-click samples (KYC, Digital arrest, Job task, Hinglish, தமிழ்).
+> 4. No copy-paste needed: the intake slip has one-click samples (KYC, Digital arrest, Job task, Hinglish KYC, Hinglish job).
 >
 > Every screen keeps the yellow **SIMULATION** label. Synthetic messages only.
 
@@ -34,7 +34,7 @@ Point at the caution tape: "Everything runs offline on this laptop, with an open
 5. Type one more scammer line in the chat box, e.g. `Madam do not tell anyone, send OTP fast or police case will be filed`,
    press **Transmit**. New red flags appear: Threat, Secrecy.
 
-*Optional (if time):* pick **Decoy: Priya**, click the **தமிழ்** (Tamil) or **Hinglish** sample and engage: the decoy answers in the
+*Optional (if time):* pick **Decoy: Priya**, click the **Hinglish KYC** or **Hinglish job** sample and engage: the decoy answers in the
 scammer's language.
 
 ## 1:30–2:10 — Live: catch a gang

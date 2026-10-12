@@ -13,7 +13,7 @@ from contracts.models import Session
 # sit outside it, because \b does not work reliably on Tamil script.
 RED_FLAGS: list[tuple[str, re.Pattern]] = [(name, re.compile(rx, re.I)) for name, rx in [
     ("Urgency", r"\b(urgent|immediately|right now|today|hurry|fast|quick(ly)?|expire[sd]?|last (reminder|chance)|time is running"
-                r"|within \d+ ?(min|minutes|hours?)|abhi|turant|jaldi)\b|உடனே|இன்று|அவசர"),
+                r"|within \d+ ?(min|minutes|hours?)|abhi|turant|jaldi|sirf aaj)\b|உடனே|இன்று|அவசர"),
     ("Asks for OTP / PIN", r"\b(otp|pin|cvv|password|passcode)\b"),
     ("Demands payment", r"\b(pay|payment|transfer|deposit|fee|charges?|send (money|rs|₹)|collect request"
                         r"|(accept|approve) (the )?(collect )?request|scan (the )?qr|bhejo|bhej do|anuppunga)\b|₹|\brs\.? ?\d|அனுப்ப|செலுத்த"),
@@ -23,7 +23,7 @@ RED_FLAGS: list[tuple[str, re.Pattern]] = [(name, re.compile(rx, re.I)) for name
     ("Threat", r"\b(block(ed)?|suspend(ed)?|arrest|legal action|penalty|freeze|frozen|disconnect(ed)?|fir|warrant"
                r"|money laundering|case (is )?(registered|filed)|restrict(ed|ion)?|band ho)\b|முடக்க|கைது"),
     ("Too good to be true", r"\b(won|winner|lottery|prize|reward|cashback|double|guaranteed|profit|returns?"
-                            r"|loan (is )?approved|earn(ings)?|bonus|refund)\b|பரிசு"),
+                            r"|loan (is )?approved|earn(ings)?|bonus|refund|kamao|ghar baithe)\b|பரிசு"),
     ("Secrecy", r"\b(do not (tell|inform|share with)|don'?t tell|keep (it|this) (secret|confidential)"
                 r"|stay on (the|this) call|kisi ko mat)\b|யாரிடமும் சொல்ல"),
     ("Moves you to WhatsApp / Telegram", r"\b(whatsapp|telegram|t\.me|wa\.me|signal app)\b"),

@@ -603,7 +603,7 @@ const SAMPLES = {
     arrest: ['whatsapp', 'This is CBI cyber cell. A parcel in your name has illegal drugs and you are under digital arrest. Stay on this call and do not tell anyone. Transfer Rs 50,000 to account 39200188765012 IFSC SBIN0004521 for verification.'],
     job: ['whatsapp', 'Part time job! Earn Rs 3000 per day by liking YouTube videos. Pay the joining fee of Rs 499 to hr.tasks@ybl. WhatsApp 9123456780 to start.'],
     hinglish: ['sms', 'Aapka Paytm KYC expire ho gaya hai. Abhi update karo warna wallet block ho jayega. Rs 1 bhejo kyc.update@paytm pe ya call karo 8765432109.'],
-    tamil: ['sms', 'உங்கள் SBI கணக்கு இன்று முடக்கப்படும். KYC புதுப்பிக்க OTP சொல்லுங்கள். ₹10 அனுப்பவும்: sbi.kyc@okaxis அல்லது 9876543210 என்ற எண்ணை அழைக்கவும்.'],
+    hinglish_job: ['whatsapp', 'Ghar baithe kamao Rs 3000 roz! Bas YouTube videos like karne hain. Joining fee Rs 499 bhejo hr.tasks@ybl pe aur WhatsApp karo 9123456780. Jaldi karo, offer sirf aaj ke liye hai.'],
 };
 document.querySelectorAll('.sample').forEach(b => b.addEventListener('click', () => {
     const [channel, text] = SAMPLES[b.dataset.sample];
