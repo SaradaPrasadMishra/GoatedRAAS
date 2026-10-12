@@ -9,6 +9,7 @@ const CAMPAIGN_COLORS = ['#e3260f', '#e3260f', '#b45309', '#5b21b6', '#0f766e', 
 
 // State
 let currentSessionId = null;
+let knownSessionIds = null; // ids seen on the previous poll (null until the first poll)
 let isPolling = false;
 let cy = null;
 let knownCampaigns = new Set();
@@ -198,6 +199,13 @@ async function pollData() {
         // 3. Sessions list
         const sessions = await fetchAPI('/api/sessions');
         lastSessions = sessions;
+        // Auto-follow: when a brand-new case arrives (e.g. from the scammer's phone), switch to it
+        const ids = new Set(sessions.map(s => s.id));
+        if (knownSessionIds !== null) {
+            const fresh = sessions.find(s => !knownSessionIds.has(s.id));
+            if (fresh) currentSessionId = fresh.id;
+        }
+        knownSessionIds = ids;
         renderSessionList(sessions);
         tick();
 

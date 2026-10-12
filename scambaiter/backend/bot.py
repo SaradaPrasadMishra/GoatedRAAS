@@ -37,12 +37,15 @@ _RULES = """
 How you behave:
 - You partly believe the other person. You WANT the refund / prize / job / loan they offer, or you are scared of the threat.
 - You are slow with phones and money apps. Keep asking them to repeat, explain, or wait.
-- Keep them talking. Ask for THEIR details "so you can pay / verify / call back": their UPI ID, phone number,
-  bank account and IFSC, website link, full name, employee ID or office address.
+- Always answer what they just said first, naturally, like a real person would.
+- Keep them talking. When they ask you to pay, verify, click, download or share something, ask for THEIR details
+  "so you can pay / verify / call back": their UPI ID, phone number, bank account and IFSC, website link,
+  full name, employee ID or office address. Do not bring up money or UPI yourself if they have not.
 - NEVER give any OTP, PIN, password, card number, CVV, Aadhaar, PAN or account number. Never write any number
   with 4 or more digits. Stall instead: "the OTP has not come", "my son has the card", "the app is loading".
 - Never send money and never say you have sent it. Never click or open links; say the link is not opening.
 - Never say you are an AI, a bot, or that you know this is a scam.
+- Write plain, normal English (or the language they use). Do not use terms of address like beta, thambi, dear, sir or madam.
 - Reply in 1 to 3 short sentences, like a real text message, in the same language the other person uses
   (English, Hinglish, Tamil or Tamil-English). No lists, no quotation marks, no labels.
 """
@@ -50,7 +53,7 @@ How you behave:
 PERSONAS: dict[str, str] = {
     "retired_teacher": (
         "You are Kamala, a 68-year-old retired Tamil school teacher from Madurai. You are polite, warm and a bit "
-        "forgetful. You call people 'beta' or 'thambi'. You talk about your grandson who set up your phone, your "
+        "forgetful. You talk about your grandson who set up your phone, your "
         "pension, your missing spectacles and the frequent power cuts." + _RULES
     ),
     "busy_shopkeeper": (
@@ -95,6 +98,12 @@ _FALLBACK_ASK = {
         "It is showing a white page only. What is the website name, I will type it myself.",
     ],
 }
+_FALLBACK_NEUTRAL = [
+    "Hello? Who is this? I do not have this number saved.",
+    "Sorry, I did not understand. Who is speaking?",
+    "Hello, which person is this? My grandson changed my phone, I lost all the contacts.",
+    "Oh hello. Do I know you? Please tell me your name.",
+]
 _FALLBACK_STALL = [
     "One minute please, my spectacles are in the other room.",
     "Sorry, there was a power cut. What were you saying?",
@@ -117,6 +126,7 @@ _BREAK = re.compile(
     r"i cannot help with|i can't help with|this is a scam|this looks like a scam|fraudulent|i'm sorry, but i can",
     re.I,
 )
+_VOCATIVE = re.compile(r",?\s*\b(beta|thambi|dear|sir|madam|ji)\b\s*(?=[,.!?]|$)|\b(beta|thambi|dear)\b,?\s*", re.I)
 _SECRET = re.compile(r"\b(otp|pin|cvv|password|passcode|card|account|a/c|aadhaar|aadhar|pan)\b", re.I)
 _LABEL = re.compile(r"^\s*(kamala|ramesh|priya|bot|assistant|reply|response|me)\s*:\s*", re.I)
 
@@ -132,6 +142,9 @@ def _sanitize(text: str) -> str | None:
     t = text.strip().strip('"').strip()
     t = _LABEL.sub("", t)
     t = t.split("\n\n")[0].replace("\n", " ").strip()
+    t = _VOCATIVE.sub("", t)
+    t = re.sub(r"\s+([,.!?])", r"\1", re.sub(r"\s{2,}", " ", t)).strip(" ,")
+    t = re.sub(r"(^|[.!?]\s+)([a-z])", lambda m: m.group(1) + m.group(2).upper(), t)
     if _BREAK.search(t):
         return None
     scrubbed = _DIGITS.sub(lambda m: "the number" if _digit_count(m.group()) >= 4 else m.group(), t)
@@ -216,6 +229,11 @@ def warm_up() -> None:
         pass
 
 
+def _looks_like_scam(session: Session) -> bool:
+    """A recognised scam type, or the scammer already shared an identifier."""
+    return session.scam_type not in ("unknown", "other") or bool(session.entities)
+
+
 def _missing_types(session: Session) -> list[str]:
     have = {e.type for e in session.entities}
     order = ["upi_id", "phone", "bank_account", "url"]
@@ -225,8 +243,13 @@ def _missing_types(session: Session) -> list[str]:
 def _llm_reply(session: Session, persona: str) -> str | None:
     system = PERSONAS.get(persona, PERSONAS["retired_teacher"])
     missing = _missing_types(session)
-    if missing:
-        system += "\nRight now: " + _ASK_HINT[missing[0]]
+    if _looks_like_scam(session):
+        if missing:
+            system += ("\nIf it fits naturally with what they just said: " + _ASK_HINT[missing[0]] +
+                       " Never force it into an unrelated reply.")
+    else:
+        system += ("\nRight now this does not look like a scam yet. Just reply naturally and briefly, "
+                   "ask who they are or what they want. Do NOT mention UPI, money, payments, bank or links.")
     msgs = [{"role": "system", "content": system}]
     for m in session.messages[-HISTORY:]:
         msgs.append({"role": "user" if m.role == "scammer" else "assistant", "content": m.text})
@@ -251,6 +274,8 @@ def _fallback_reply(session: Session) -> str:
     bot_turns = sum(1 for m in session.messages if m.role == "bot")
     rng = random.Random(f"{session.id}:{bot_turns}")
     missing = _missing_types(session)
+    if not _looks_like_scam(session):
+        return rng.choice(_FALLBACK_NEUTRAL)
     if missing and bot_turns % 2 == 0:  # every other turn, go fishing for a missing identifier
         return rng.choice(_FALLBACK_ASK[missing[0]])
     return _FALLBACK_STALL[(bot_turns + rng.randrange(len(_FALLBACK_STALL))) % len(_FALLBACK_STALL)]
