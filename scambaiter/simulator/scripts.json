@@ -1,0 +1,709 @@
+[
+  {
+    "id": "gt_001",
+    "scam_type": "kyc_update",
+    "campaign_label": "kyc_wave_A",
+    "opening": "URGENT: KYC pending. Account services may pause today. Verify at verify-kyc-river.in/update or call +919111111101",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919111111101"
+      },
+      {
+        "type": "url",
+        "value": "verify-kyc-river.in/update"
+      },
+      {
+        "type": "email",
+        "value": "kycdesk@river-mail.in"
+      }
+    ],
+    "style_notes": "Urgent but polite; reveal phone on turn 1 (opening), email on turn 2, URL on turn 3."
+  },
+  {
+    "id": "gt_002",
+    "scam_type": "kyc_update",
+    "campaign_label": "kyc_wave_A",
+    "opening": "KYC expire aagiduchu sir. Update now: account-check-lotus.in/confirm. Help +919111111101",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919111111101"
+      },
+      {
+        "type": "url",
+        "value": "account-check-lotus.in/confirm"
+      },
+      {
+        "type": "upi_id",
+        "value": "kyc.help@okaxis"
+      }
+    ],
+    "style_notes": "Hinglish/Tamil-English urgency; phone in opening, UPI on turn 2, URL on turn 3."
+  },
+  {
+    "id": "gt_003",
+    "scam_type": "kyc_update",
+    "campaign_label": "kyc_wave_A",
+    "opening": "Dear customer, KYC revalidation is pending. Contact +919111111101 to avoid temporary restriction.",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919111111101"
+      },
+      {
+        "type": "email",
+        "value": "revalidate@river-mail.in"
+      },
+      {
+        "type": "url",
+        "value": "revalidate-river.in/kyc"
+      }
+    ],
+    "style_notes": "Formal support tone; phone in opening, email on turn 2, URL on turn 3."
+  },
+  {
+    "id": "gt_004",
+    "scam_type": "kyc_update",
+    "campaign_label": "kyc_wave_A",
+    "opening": "இன்று KYC update பண்ணுங்க. Help number +919111111101; link kyc-fix-mango.in/secure",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919111111101"
+      },
+      {
+        "type": "url",
+        "value": "kyc-fix-mango.in/secure"
+      },
+      {
+        "type": "upi_id",
+        "value": "kycassist@okaxis"
+      }
+    ],
+    "style_notes": "Tamil; pressure to act today; phone in opening, UPI on turn 2, URL on turn 3."
+  },
+  {
+    "id": "gt_005",
+    "scam_type": "refund_collect",
+    "campaign_label": "refund_ring_B",
+    "opening": "Refund of Rs 2499 approved. Accept collect request from refund.counter@okaxis. Support +919111111102",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "refund.counter@okaxis"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111102"
+      },
+      {
+        "type": "email",
+        "value": "refunddesk@river-mail.in"
+      }
+    ],
+    "style_notes": "Pushy call-centre English; UPI and phone in opening, email on turn 2."
+  },
+  {
+    "id": "gt_006",
+    "scam_type": "refund_collect",
+    "campaign_label": "refund_ring_B",
+    "opening": "Sir refund pending only 5 mins. Payback request from return.cash@ybl. Call +919111111102",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "return.cash@ybl"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111102"
+      },
+      {
+        "type": "url",
+        "value": "refund-return.in/claim"
+      }
+    ],
+    "style_notes": "Hinglish; repeat sir and add urgency; UPI and phone in opening, URL on turn 3."
+  },
+  {
+    "id": "gt_007",
+    "scam_type": "refund_collect",
+    "campaign_label": "refund_ring_B",
+    "opening": "உங்க refund ready. Collect request refund.tamil@okaxis ல வரும்; help +919111111102",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "refund.tamil@okaxis"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111102"
+      },
+      {
+        "type": "email",
+        "value": "refundhelp@river-mail.in"
+      }
+    ],
+    "style_notes": "Tamil-English; reassure victim; UPI and phone in opening, email on turn 2."
+  },
+  {
+    "id": "gt_008",
+    "scam_type": "refund_collect",
+    "campaign_label": "refund_ring_B",
+    "opening": "Refund failed due to bank mismatch. Retry via refund-retry-pearl.in/status or ring +919111111102",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "refund-retry-pearl.in/status"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111102"
+      },
+      {
+        "type": "upi_id",
+        "value": "retry.refund@ybl"
+      }
+    ],
+    "style_notes": "Blames bank delay; phone and URL in opening, UPI on turn 2."
+  },
+  {
+    "id": "gt_009",
+    "scam_type": "job_task",
+    "campaign_label": "task_task_C",
+    "opening": "Part time job: like 3 videos and earn daily. Register task-bonus-fern.in/join. HR +919111111103",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919111111103"
+      },
+      {
+        "type": "url",
+        "value": "task-bonus-fern.in/join"
+      },
+      {
+        "type": "upi_id",
+        "value": "taskbonus@okaxis"
+      }
+    ],
+    "style_notes": "Friendly recruiter; phone and URL in opening, UPI on turn 2."
+  },
+  {
+    "id": "gt_010",
+    "scam_type": "job_task",
+    "campaign_label": "task_task_C",
+    "opening": "Work from home easy income. First task payment goes to taskbonus@okaxis. WhatsApp +919111111103",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "taskbonus@okaxis"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111103"
+      },
+      {
+        "type": "email",
+        "value": "hr.tasks@fern-mail.in"
+      }
+    ],
+    "style_notes": "Hinglish; promises quick payout; UPI and phone in opening, email on turn 2."
+  },
+  {
+    "id": "gt_011",
+    "scam_type": "job_task",
+    "campaign_label": "task_task_C",
+    "opening": "வீட்டிலிருந்து வேலை, simple rating task. Details task-work-fern.in/start; contact +919111111103",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "task-work-fern.in/start"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111103"
+      },
+      {
+        "type": "upi_id",
+        "value": "taskbonus@okaxis"
+      }
+    ],
+    "style_notes": "Tamil-English; cheerful then impatient; URL and phone in opening, UPI on turn 2."
+  },
+  {
+    "id": "gt_012",
+    "scam_type": "job_task",
+    "campaign_label": "task_task_C",
+    "opening": "Congratulations selected for online task role. Message +919111111103; payout ID taskbonus@okaxis",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919111111103"
+      },
+      {
+        "type": "upi_id",
+        "value": "taskbonus@okaxis"
+      },
+      {
+        "type": "email",
+        "value": "recruit@fern-mail.in"
+      }
+    ],
+    "style_notes": "Professional recruiter voice; phone and UPI in opening, email on turn 2."
+  },
+  {
+    "id": "gt_013",
+    "scam_type": "lottery_prize",
+    "campaign_label": "lucky_draw_D",
+    "opening": "Congrats! Your mobile won Rs 5 lakh lucky draw. Claim at lucky-claim-saffron.in/win. Officer +919111111104",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "lucky-claim-saffron.in/win"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111104"
+      },
+      {
+        "type": "email",
+        "value": "prizeoffice@saffron-mail.in"
+      }
+    ],
+    "style_notes": "Excited and congratulatory; URL and phone in opening, email on turn 2."
+  },
+  {
+    "id": "gt_014",
+    "scam_type": "lottery_prize",
+    "campaign_label": "lucky_draw_D",
+    "opening": "You are selected in festival bumper prize. Processing UPI prize.fund@okaxis. Call +919111111104",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "prize.fund@okaxis"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111104"
+      },
+      {
+        "type": "url",
+        "value": "festival-prize-saffron.in/claim"
+      }
+    ],
+    "style_notes": "Hinglish; insists small fee releases prize; UPI and phone in opening, URL on turn 3."
+  },
+  {
+    "id": "gt_015",
+    "scam_type": "lottery_prize",
+    "campaign_label": "lucky_draw_D",
+    "opening": "உங்களுக்கு lucky draw பரிசு! Claim link prize-tamil-saffron.in/redeem; officer +919111111104",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "prize-tamil-saffron.in/redeem"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111104"
+      },
+      {
+        "type": "upi_id",
+        "value": "winner.fee@ybl"
+      }
+    ],
+    "style_notes": "Tamil-English; enthusiastic; URL and phone in opening, UPI on turn 2."
+  },
+  {
+    "id": "gt_016",
+    "scam_type": "lottery_prize",
+    "campaign_label": "lucky_draw_D",
+    "opening": "Final reminder for prize allotment. Send details to winnerdesk@saffron-mail.in or call +919111111104",
+    "planted_entities": [
+      {
+        "type": "email",
+        "value": "winnerdesk@saffron-mail.in"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111104"
+      },
+      {
+        "type": "url",
+        "value": "winner-desk-saffron.in/form"
+      }
+    ],
+    "style_notes": "Formal deadline pressure; email and phone in opening, URL on turn 3."
+  },
+  {
+    "id": "gt_017",
+    "scam_type": "digital_arrest",
+    "campaign_label": "case_threat_E",
+    "opening": "CBI verification notice: remain available for inquiry. Case portal case-verify-indigo.in/notice; officer +919111111105",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "case-verify-indigo.in/notice"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111105"
+      },
+      {
+        "type": "email",
+        "value": "caseunit@indigo-mail.in"
+      }
+    ],
+    "style_notes": "Intimidating official-sounding tone; no real agency contact details; URL and phone in opening, email on turn 2."
+  },
+  {
+    "id": "gt_018",
+    "scam_type": "digital_arrest",
+    "campaign_label": "case_threat_E",
+    "opening": "Your parcel linked to inquiry. Do not disconnect. Call +919111111105; reference portal parcel-case-indigo.in/check",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919111111105"
+      },
+      {
+        "type": "url",
+        "value": "parcel-case-indigo.in/check"
+      },
+      {
+        "type": "email",
+        "value": "notice@indigo-mail.in"
+      }
+    ],
+    "style_notes": "Threatening, urgent; phone and URL in opening, email on turn 2."
+  },
+  {
+    "id": "gt_019",
+    "scam_type": "digital_arrest",
+    "campaign_label": "case_threat_E",
+    "opening": "உங்கள் பெயரில் case இருக்கிறது என்று கூறுகிறோம். Verify at legal-check-indigo.in/status; call +919111111105",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "legal-check-indigo.in/status"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111105"
+      },
+      {
+        "type": "upi_id",
+        "value": "case.processing@okaxis"
+      }
+    ],
+    "style_notes": "Tamil-English intimidation; never asks for real OTP; URL and phone in opening, UPI on turn 3."
+  },
+  {
+    "id": "gt_020",
+    "scam_type": "digital_arrest",
+    "campaign_label": "case_threat_E",
+    "opening": "Video verification mandatory. Contact +919111111105. Send document fee to case.review@ybl",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919111111105"
+      },
+      {
+        "type": "upi_id",
+        "value": "case.review@ybl"
+      },
+      {
+        "type": "email",
+        "value": "reviewcell@indigo-mail.in"
+      }
+    ],
+    "style_notes": "Authoritative and coercive; phone and UPI in opening, email on turn 2."
+  },
+  {
+    "id": "gt_021",
+    "scam_type": "investment",
+    "campaign_label": "growth_circle_F",
+    "opening": "Get assured daily returns with our private group. Join growth-circle-cedar.in/start. Advisor +919111111106",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "growth-circle-cedar.in/start"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111106"
+      },
+      {
+        "type": "upi_id",
+        "value": "growthdesk@okaxis"
+      }
+    ],
+    "style_notes": "Confident advisor; claims guaranteed returns; URL and phone in opening, UPI on turn 2."
+  },
+  {
+    "id": "gt_022",
+    "scam_type": "investment",
+    "campaign_label": "growth_circle_F",
+    "opening": "Crypto doubling plan open today. Deposit route growthdesk@okaxis; call +919111111106 for allocation",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "growthdesk@okaxis"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111106"
+      },
+      {
+        "type": "email",
+        "value": "signals@cedar-mail.in"
+      }
+    ],
+    "style_notes": "Hinglish; FOMO and guaranteed gains; UPI and phone in opening, email on turn 2."
+  },
+  {
+    "id": "gt_023",
+    "scam_type": "investment",
+    "campaign_label": "growth_circle_F",
+    "opening": "மாதம் நல்ல profit வேண்டுமா? Register cedar-invest.in/member. Contact +919111111106",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "cedar-invest.in/member"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111106"
+      },
+      {
+        "type": "crypto_wallet",
+        "value": "0xabcdeffedcba1234567890abcdef1234567890ab"
+      }
+    ],
+    "style_notes": "Tamil-English; persuasive; URL and phone in opening, fake wallet on turn 3."
+  },
+  {
+    "id": "gt_024",
+    "scam_type": "investment",
+    "campaign_label": "growth_circle_F",
+    "opening": "Your portfolio slot reserved. Pay activation to growthdesk@okaxis; advisor mail signals@cedar-mail.in",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "growthdesk@okaxis"
+      },
+      {
+        "type": "email",
+        "value": "signals@cedar-mail.in"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111106"
+      }
+    ],
+    "style_notes": "Pushes urgency; UPI and email in opening, phone on turn 2."
+  },
+  {
+    "id": "gt_025",
+    "scam_type": "loan_app",
+    "campaign_label": "quick_loan_G",
+    "opening": "Instant loan approved without salary slip. Apply at instant-loan-marigold.in/apply; agent +919111111107",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "instant-loan-marigold.in/apply"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111107"
+      },
+      {
+        "type": "email",
+        "value": "loanhelp@marigold-mail.in"
+      }
+    ],
+    "style_notes": "Friendly loan agent; URL and phone in opening, email on turn 2."
+  },
+  {
+    "id": "gt_026",
+    "scam_type": "loan_app",
+    "campaign_label": "quick_loan_G",
+    "opening": "Loan disbursal today. Small file fee UPI loan.file@okaxis. Call +919111111107",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "loan.file@okaxis"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111107"
+      },
+      {
+        "type": "url",
+        "value": "loan-fast-marigold.in/fee"
+      }
+    ],
+    "style_notes": "Hinglish; fee-first pressure; UPI and phone in opening, URL on turn 3."
+  },
+  {
+    "id": "gt_027",
+    "scam_type": "loan_app",
+    "campaign_label": "quick_loan_G",
+    "opening": "உடனடி loan வேண்டுமா? Apply instant-credit-marigold.in/form; help +919111111107",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "instant-credit-marigold.in/form"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111107"
+      },
+      {
+        "type": "upi_id",
+        "value": "credit.fee@ybl"
+      }
+    ],
+    "style_notes": "Tamil-English; casual and urgent; URL and phone in opening, UPI on turn 2."
+  },
+  {
+    "id": "gt_028",
+    "scam_type": "loan_app",
+    "campaign_label": "quick_loan_G",
+    "opening": "Pre-approved credit offer. Send query to support@marigold-mail.in or call +919111111107",
+    "planted_entities": [
+      {
+        "type": "email",
+        "value": "support@marigold-mail.in"
+      },
+      {
+        "type": "phone",
+        "value": "+919111111107"
+      },
+      {
+        "type": "url",
+        "value": "credit-support-marigold.in/check"
+      }
+    ],
+    "style_notes": "Formal support tone; email and phone in opening, URL on turn 3."
+  },
+  {
+    "id": "gt_029",
+    "scam_type": "kyc_update",
+    "campaign_label": "lone_kyc_01",
+    "opening": "Final KYC notice: verify at profile-check-otter.in/renew or mail kyc@otter-mail.in",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "profile-check-otter.in/renew"
+      },
+      {
+        "type": "email",
+        "value": "kyc@otter-mail.in"
+      }
+    ],
+    "style_notes": "Standalone KYC wording; reveal email on turn 2; no identifiers shared with other scripts."
+  },
+  {
+    "id": "gt_030",
+    "scam_type": "refund_collect",
+    "campaign_label": "lone_refund_01",
+    "opening": "Refund processing link: payout-amber.in/track. For help write payout@amber-mail.in",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "payout-amber.in/track"
+      },
+      {
+        "type": "email",
+        "value": "payout@amber-mail.in"
+      }
+    ],
+    "style_notes": "Standalone polite refund notice; reveal email on turn 2; isolated identifiers."
+  },
+  {
+    "id": "gt_031",
+    "scam_type": "job_task",
+    "campaign_label": "lone_job_01",
+    "opening": "Part time review work, daily payout. Message +919222222201 and register microtask-owl.in/start",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919222222201"
+      },
+      {
+        "type": "url",
+        "value": "microtask-owl.in/start"
+      }
+    ],
+    "style_notes": "Standalone recruiter; phone and URL in opening; isolated identifiers."
+  },
+  {
+    "id": "gt_032",
+    "scam_type": "lottery_prize",
+    "campaign_label": "lone_lottery_01",
+    "opening": "வாழ்த்துகள்! prize claim செய்ய lucky-claim-ivory.in/ticket. Email winner@ivory-mail.in",
+    "planted_entities": [
+      {
+        "type": "url",
+        "value": "lucky-claim-ivory.in/ticket"
+      },
+      {
+        "type": "email",
+        "value": "winner@ivory-mail.in"
+      }
+    ],
+    "style_notes": "Tamil; celebratory pressure; URL and email in opening; isolated identifiers."
+  },
+  {
+    "id": "gt_033",
+    "scam_type": "digital_arrest",
+    "campaign_label": "lone_case_01",
+    "opening": "Urgent inquiry notice. Call +919222222202 or read notice-cobalt.in/case",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919222222202"
+      },
+      {
+        "type": "url",
+        "value": "notice-cobalt.in/case"
+      }
+    ],
+    "style_notes": "Standalone intimidating script; phone and URL in opening; isolated identifiers."
+  },
+  {
+    "id": "gt_034",
+    "scam_type": "investment",
+    "campaign_label": "lone_invest_01",
+    "opening": "Crypto returns group: send funds to alpha.pool@okaxis; details at alpha-returns.in/plan",
+    "planted_entities": [
+      {
+        "type": "upi_id",
+        "value": "alpha.pool@okaxis"
+      },
+      {
+        "type": "url",
+        "value": "alpha-returns.in/plan"
+      }
+    ],
+    "style_notes": "Standalone investment pitch; UPI and URL in opening; isolated identifiers."
+  },
+  {
+    "id": "gt_035",
+    "scam_type": "loan_app",
+    "campaign_label": "lone_loan_01",
+    "opening": "Loan offer available now. Agent +919222222203; form loan-form-plum.in/start",
+    "planted_entities": [
+      {
+        "type": "phone",
+        "value": "+919222222203"
+      },
+      {
+        "type": "url",
+        "value": "loan-form-plum.in/start"
+      }
+    ],
+    "style_notes": "Standalone loan offer; phone and URL in opening; isolated identifiers."
+  }
+]

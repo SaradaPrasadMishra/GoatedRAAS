@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scambaiter · Threat Intercept Console</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="vendor/cytoscape.min.js"></script>
+</head>
+<body>
+    <header class="top-bar">
+        <div class="brand">
+            <div class="logo-mark"></div>
+            <div>
+                <div class="logo">Scambaiter</div>
+                <span class="logo-sub">THREAT INTERCEPT CONSOLE · LOCAL AI · OFFLINE</span>
+            </div>
+        </div>
+        <div class="badges">
+            <span class="badge badge-sim">SIMULATION</span>
+            <span class="badge badge-health" id="health-status">Checking LLM...</span>
+            <span class="badge badge-offline" id="offline-pill" style="display: none;">API Offline</span>
+            <span class="hud-clock" id="hud-clock">--:--:--</span>
+        </div>
+    </header>
+
+    <section class="stats-bar">
+        <div class="stat-tile hud">
+            <div class="stat-label">Sessions</div>
+            <div class="stat-value" id="stat-sessions">0</div>
+        </div>
+        <div class="stat-tile hud">
+            <div class="stat-label">Identifiers Captured</div>
+            <div class="stat-value" id="stat-entities">0</div>
+        </div>
+        <div class="stat-tile hud">
+            <div class="stat-label">Campaigns Linked</div>
+            <div class="stat-value" id="stat-campaigns">0</div>
+        </div>
+        <div class="stat-tile hud hero-stat">
+            <div class="stat-label">Scammer Time Wasted</div>
+            <div class="stat-value" id="stat-time">0h 0m</div>
+        </div>
+    </section>
+
+    <main class="main-content">
+        <!-- Left: Sessions -->
+        <div class="col-left">
+            <h3>Intercepted Sessions</h3>
+            <div class="session-list" id="session-list">
+                <!-- Session items populated here -->
+            </div>
+            <div class="paste-box hud">
+                <h4>Intercept new scam</h4>
+                <select id="new-channel">
+                    <option value="sms">SMS</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="telegram">Telegram</option>
+                    <option value="simulator">Simulator</option>
+                </select>
+                <textarea id="new-message" rows="3" placeholder="&gt; paste the suspicious message here"></textarea>
+                <button id="btn-create-session">Engage Decoy</button>
+            </div>
+        </div>
+
+        <!-- Center: Chat -->
+        <div class="col-center hud">
+            <div class="chat-header">
+                <h3>Live Transcript</h3>
+                <div class="chat-actions" id="chat-actions" style="display: none;">
+                    <a href="#" target="_blank" id="btn-report" class="btn">Evidence Report</a>
+                    <button id="btn-close" class="btn btn-danger">Terminate</button>
+                </div>
+            </div>
+            <div class="chat-window" id="chat-window">
+                <div class="empty-state">Awaiting target · select a session</div>
+            </div>
+            <div class="chat-input" id="chat-input-area" style="display: none;">
+                <input type="text" id="manual-msg" placeholder="&gt; scammer says...">
+                <button id="btn-send-msg">Transmit</button>
+            </div>
+        </div>
+
+        <!-- Right: Graph -->
+        <div class="col-right">
+            <h3>Campaign Network</h3>
+            <div class="graph-frame hud">
+                <div id="cy"></div>
+                <div class="graph-legend">
+                    <span><i style="background:#2de2e6;border-radius:50%"></i>session</span>
+                    <span><i style="background:#22c55e"></i>upi</span>
+                    <span><i style="background:#3b82f6"></i>phone</span>
+                    <span><i style="background:#f59e0b"></i>url</span>
+                    <span><i style="background:#ef4444"></i>bank</span>
+                    <span><i style="background:#06b6d4"></i>email</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast-container"></div>
+    <script src="app.js"></script>
+</body>
+</html>

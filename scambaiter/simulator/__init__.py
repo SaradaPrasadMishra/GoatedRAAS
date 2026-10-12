@@ -1,0 +1,1 @@
+"""Synthetic Scambaiter conversation simulator."""
