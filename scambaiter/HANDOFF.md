@@ -10,9 +10,9 @@ flow, slides, and overall polish. A teammate (P1) is building `backend/` separat
 |---|---|---|
 | Contract, checker, mock server | `contracts/`, `tools/` | Frozen. Do not edit. |
 | Extractor + campaign linking (P2) | `extractor/` | Done. 14/14 + 10/10 checks, 34/34 in `python -m extractor.tests_extra`. Crypto-vs-IFSC bug fixed; classifier rewritten with weighted whole-word keywords. |
-| Dashboard + evidence report (P3) | `dashboard/`, `report/` | Done. 7/7 + 8/8. Restyled as a sci-fi "Threat Intercept Console" (HUD panels, scanlines, radar graph, count-up stats). Chat only re-renders when data changes and only new messages animate (no flicker). |
+| Dashboard + evidence report (P3) | `dashboard/`, `report/` | Done. 7/7 + 8/8. "The Trap" design: red/black/paper, preloader, caution-tape SIMULATION strip, word-by-word scammer line with CAPTURED stamps, evidence board with red string, branded A4 report. |
 | Simulator + metrics + pitch (P4) | `simulator/`, `pitch/` | Done. 6/6 (+ last_eval check once generated). 35 scripts, 7 campaigns. Filler lines diversified. |
-| Backend + bot (P1) | `backend/` | **In progress by P1. Do not edit `backend/`.** |
+| Backend + bot (P1) | `backend/` | Done (merged). Stdlib HTTP server + Ollama bot with safety filter and fallback replies. `check_contract.py all` 62/62 against the running backend. P1 still owns `backend/`. |
 
 Measured with all 35 simulator scripts through the real extractor (test backend, not P1's):
 entity F1 1.00, campaign purity 1.00, campaign recall 7/7, scam-type accuracy 1.00
