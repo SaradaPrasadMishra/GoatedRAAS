@@ -78,3 +78,9 @@ gang linking, the report and the complaint all work the same. Fix afterwards: op
 ## If Wi-Fi dies
 
 Nothing changes: the app, the model and the dashboard are all local.
+
+## Security and real-world beats (if asked, or swap in for the gang beat)
+- **20 s, security:** "Sir asked about security. Everything here is behind a login, encrypted, and every message is sealed." Open a closed case (green **SEALED ✓**). In a second window: `python -m backend.security tamper s_xxxxxxxx`. The badge turns **TAMPERED ✗**. "Even an insider can't quietly change evidence." Click **SECURITY → Audit log**: the logins, exports and the prompt-injection attempt are all there.
+- **20 s, real world:** forward a scam email from your phone to the demo Gmail. Within 15 s it appears as **✉ EMAIL · REPORTED** and your phone gets the verdict email. Then click **Complaint** (NCRP fields pre-filled) and, on a gang, **Signed bank alert**.
+- No internet: drop `scam.eml` on the intake slip instead (same code path).
+- Before going on stage: sign in as admin, and keep a second terminal open in `scambaiter/` with the venv active.

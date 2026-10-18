@@ -57,6 +57,24 @@ function renderIntel(session, a) {
     const money = a.demanded ? ` (${rupees(a.demanded)})` : '';
     document.getElementById('safety').innerHTML =
         `OTP/PIN asked ${a.otp_asked}× · given ${n(a.shared)} &nbsp;·&nbsp; payment asked ${a.pay_asked}×${money} · paid ${n(a.paid)} &nbsp;·&nbsp; links opened <b>0</b>`;
+    // evidence seal: every message is hash-chained when captured; any later edit shows here
+    const seal = document.getElementById('seal');
+    if (currentSeal && currentSeal.ok) {
+        seal.className = 'seal-badge ok';
+        seal.textContent = `SEALED ✓ ${plural(currentSeal.messages, 'msg')}${currentSeal.encrypted ? ' · encrypted' : ''}`;
+        seal.title = 'Every message is in an HMAC-SHA256 hash chain made at capture. Chain head ' + (currentSeal.head || '').slice(0, 16);
+    } else if (currentSeal) {
+        seal.className = 'seal-badge bad';
+        seal.textContent = 'TAMPERED ✗';
+        seal.title = currentSeal.reason || 'The stored transcript no longer matches its seal';
+    } else {
+        seal.className = 'seal-badge'; seal.textContent = 'checking…'; seal.title = '';
+    }
+    const src = sources[session.id];
+    document.getElementById('src-info').textContent = !src ? '' :
+        src.mode === 'report' ? `✉ forwarded by ${src.reporter || 'a user'} · sender ${src.peer || '?'}`
+        : src.source === 'sms_gateway' ? `SMS from ${src.peer}`
+        : `✉ ${src.peer || ''}${src.subject ? ' · “' + src.subject + '”' : ''}`;
 }
 
 // Format seconds to Xh Ym
@@ -105,20 +123,44 @@ function showToast(msg, isError = false) {
     setTimeout(() => { t.classList.add('leaving'); setTimeout(() => t.remove(), 160); }, 5000);
 }
 
-// Fetch Wrapper
+// Fetch Wrapper: sends the login cookie; a 401 means the login expired, so go back to the login page
 async function fetchAPI(endpoint, options = {}) {
+    let res;
     try {
-        const res = await fetch(API_BASE + endpoint, options);
-        document.getElementById('offline-pill').style.display = 'none';
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        return await res.json();
+        res = await fetch(API_BASE + endpoint, { credentials: 'same-origin', ...options });
     } catch (err) {
         document.getElementById('offline-pill').style.display = 'inline-block';
         throw err;
     }
+    document.getElementById('offline-pill').style.display = 'none';
+    if (res.status === 401) { location.href = '/login.html'; throw new Error('login required'); }
+    if (!res.ok) {
+        let detail = '';
+        try { detail = (await res.json()).detail; } catch (e) { /* not JSON */ }
+        const err = new Error(typeof detail === 'string' && detail ? detail : 'HTTP ' + res.status);
+        err.status = res.status;
+        throw err;
+    }
+    return await res.json();
 }
+const postJSON = (endpoint, body = {}) =>
+    fetchAPI(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+// Who is signed in: admins also get the Security console and unmasked data
+let me = { role: 'analyst' };
+fetchAPI('/api/me').then(m => {
+    me = m;
+    document.getElementById('user-chip').textContent = `${m.role.toUpperCase()} · ${m.user}`;
+    document.getElementById('btn-security').hidden = m.role !== 'admin';
+    document.getElementById('btn-logout').hidden = m.kind !== 'user';
+}).catch(() => {});
+document.getElementById('btn-logout').onclick = async () => {
+    try { await postJSON('/api/logout'); } finally { location.href = '/login.html'; }
+};
 
 let lastStats = null, lastSessions = [], lastGraph = null, currentSession = null;
+let sources = {}, currentSeal = null;   // where each case came from (Gmail, SMS gateway, .eml); evidence seal of the open case
+const SOURCE_TAG = { gmail: '✉ EMAIL', eml_upload: '✉ EMAIL', sms_gateway: 'SMS GATEWAY' };
 const IDLE_CAP = 120; // a silent scammer stops counting after 2 minutes
 
 // Seconds since a session's last message, while it is still active
@@ -143,7 +185,9 @@ function tick() {
             : s.time_wasted_seconds;
         meta.hidden = false;
         document.getElementById('btn-save-replay').hidden = false;
-        document.getElementById('call-persona').textContent = (replayIds.has(s.id) ? '▶ REPLAY · ' : '') + 'as ' + personaOf(s.persona).name;
+        const reported = sources[s.id] && sources[s.id].mode === 'report';
+        document.getElementById('call-persona').textContent = reported ? 'Reported scam · no decoy reply'
+            : (replayIds.has(s.id) ? '▶ REPLAY · ' : '') + 'as ' + personaOf(s.persona).name;
         document.getElementById('call-persona').title = personaOf(s.persona).who;
         document.getElementById('call-timer').textContent = (s.status === 'active' ? 'on call ' : 'closed after ') + formatClock(secs);
     } else {
@@ -184,6 +228,7 @@ async function pollData() {
         // 3. Sessions list
         const sessions = await fetchAPI('/api/sessions');
         lastSessions = sessions;
+        sources = await fetchAPI('/api/sources').catch(() => sources);
         const rp = await fetchAPI('/api/replays').catch(() => null);
         if (rp) { replayIds = new Set(rp.replay_sessions); replayNames = rp.recordings; }
         // Auto-follow: when a brand-new case arrives (e.g. from the scammer's phone), switch to it
@@ -206,6 +251,7 @@ async function pollData() {
             const sessionData = await fetchAPI(`/api/sessions/${currentSessionId}`);
             currentSession = sessionData;
             currentAnalysis = await fetchAPI(`/api/sessions/${currentSessionId}/analysis`).catch(() => null);
+            currentSeal = await fetchAPI(`/api/sessions/${currentSessionId}/verify`).catch(() => null);
             renderChat(sessionData);
             renderIntel(sessionData, currentAnalysis);
         }
@@ -241,7 +287,7 @@ let lastListKey = '';
 function renderSessionList(sessions) {
     const container = document.getElementById('session-list');
     // Re-render only when something changed, so keyboard focus survives polling
-    const key = currentSessionId + '|' + [...replayIds].join(',') + '|' + JSON.stringify(sessions);
+    const key = currentSessionId + '|' + [...replayIds].join(',') + '|' + Object.keys(sources).length + '|' + JSON.stringify(sessions);
     if (key === lastListKey) return;
     lastListKey = key;
     const hadFocus = container.contains(document.activeElement) ? document.activeElement.dataset.id : null;
@@ -267,7 +313,7 @@ function renderSessionList(sessions) {
                 <span class="chip">${escapeHTML(s.scam_type.replace(/_/g, ' '))}</span>
                 ${cBadge}
             </div>
-            <div class="session-meta">${escapeHTML(s.channel)} • ${plural(s.message_count, 'msg')} • ${plural(s.entity_count, 'identifier')}</div>
+            <div class="session-meta">${sources[s.id] ? `<span class="src-tag">${SOURCE_TAG[sources[s.id].source] || ''}${sources[s.id].mode === 'report' ? ' · REPORTED' : ''}</span>` : escapeHTML(s.channel)} • ${plural(s.message_count, 'msg')} • ${plural(s.entity_count, 'identifier')}</div>
         `;
         container.appendChild(div);
         if (hadFocus === s.id) div.focus();
@@ -320,6 +366,7 @@ function renderChat(session) {
     document.getElementById('chat-actions').style.display = 'flex';
     document.getElementById('chat-input-area').style.display = session.status === 'active' ? 'flex' : 'none';
     document.getElementById('btn-report').href = `${API_BASE}/api/sessions/${session.id}/report`;
+    document.getElementById('btn-complaint').href = `${API_BASE}/api/sessions/${session.id}/complaint`;
     
     session.messages.forEach((m, idx) => {
         const msgDiv = document.createElement('div');
@@ -448,10 +495,11 @@ async function withBusy(btn, busyLabel, fn) {
     btn.disabled = true;
     btn.innerText = busyLabel;
     try { await fn(); }
-    catch (e) { showToast(OFFLINE_HELP, true); }
+    catch (e) { showToast(e.status ? e.message : OFFLINE_HELP, true); }
     finally { btn.disabled = false; btn.innerText = label; }
 }
 
+document.getElementById('new-form').addEventListener('submit', (e) => e.preventDefault());
 document.getElementById('btn-create-session').onclick = () => {
     const box = document.getElementById('new-message');
     const text = box.value.trim();
@@ -533,57 +581,9 @@ if (fsBtn) {
     requestAnimationFrame(tick);
 })();
 
-// "Complaint" button: a ready-to-paste complaint for cybercrime.gov.in (copied, or downloaded as .txt)
+// "Complaint" opens /api/sessions/{id}/complaint: the NCRP form fields, printable, with a JSON download
 const LABEL = { upi_id: 'UPI ID', phone: 'Phone number', url: 'Website / link', bank_account: 'Bank account', ifsc: 'IFSC code', email: 'Email', crypto_wallet: 'Crypto wallet' };
 const TS_FMT = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-function complaintText(s) {
-    const a = currentAnalysis || { flags: [], pay_asked: 0, otp_asked: 0, shared: 0, paid: 0, demanded: 0 };
-    const scam = s.messages.filter(m => m.role === 'scammer');
-    const first = s.messages[0] ? TS_FMT.format(new Date(s.messages[0].ts)) : '-';
-    const last = s.messages.length ? TS_FMT.format(new Date(s.messages[s.messages.length - 1].ts)) : '-';
-    const camp = lastGraph && lastGraph.campaigns.find(c => c.session_ids.includes(s.id));
-    const lines = [
-        'SCAM COMPLAINT [SIMULATION - generated by Scambaiter]',
-        '',
-        `Incident: ${s.scam_type.replace(/_/g, ' ')} scam received on ${s.channel}`,
-        `Date/time: ${first} to ${last}`,
-        `Red flags: ${a.flags.join(', ') || 'none detected'}`,
-        '',
-        'Identifiers used by the scammer:',
-        ...(s.entities.length ? s.entities.map(e => `- ${LABEL[e.type] || e.type}: ${e.value}`) : ['- none captured']),
-        '',
-        camp ? `The same identifiers appear in ${camp.size - 1} other report(s) (linked campaign ${camp.id}), which suggests an organised group.` : 'No link to other reports found yet.',
-        '',
-        `What happened: I received messages asking me to ${a.pay_asked ? 'make a payment' + (a.demanded ? ` of ${rupees(a.demanded)}` : '') : 'take action'}${a.otp_asked ? ' and share an OTP/PIN' : ''}. ` +
-        (a.shared || a.paid
-            ? 'Please check the transcript below: a number or payment may have been shared.'
-            : 'I did not share any OTP, PIN or bank details and did not send any money.'),
-        '',
-        "Scammer's messages:",
-        ...scam.map(m => `[${TS_FMT.format(new Date(m.ts))}] ${m.text}`),
-        '',
-        'Report at https://cybercrime.gov.in or call 1930. Identifiers are machine-extracted; please verify before legal action.',
-    ];
-    return lines.join('\n');
-}
-
-document.getElementById('btn-complaint').onclick = async () => {
-    if (!currentSession) return;
-    const text = complaintText(currentSession);
-    try {
-        await navigator.clipboard.writeText(text);
-        showToast('Complaint copied. Paste it at cybercrime.gov.in');
-    } catch (e) {
-        const blob = new Blob([text], { type: 'text/plain' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `complaint-${currentSession.id}.txt`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-        showToast('Complaint downloaded as a text file');
-    }
-};
 
 // The decoy picker is the backend's default for every new case, including ones started from the
 // scammer's phone page. A case keeps its decoy once it starts: say so when the picker changes mid-case.
@@ -624,6 +624,7 @@ const WHY = {
     'Secrecy': 'Tells you not to tell anyone, so nobody can warn you.',
     'Moves you to WhatsApp / Telegram': 'Pulls you into a private chat app, away from official channels.',
     'Suspicious link': 'Contains a link. Never open links from unknown senders.',
+    'Tries to trick the AI': 'Gives orders meant for an AI, or tests whether it is one. The decoy ignores them.',
 };
 const VERDICT = { HIGH: 'Very likely a scam', MEDIUM: 'Likely a scam', LOW: 'No strong scam signs' };
 
@@ -725,4 +726,163 @@ document.addEventListener('keydown', async (e) => {
     } catch (err) {
         showToast('No recording yet. In rehearsal, open a good case and press "Save".', true);
     }
+});
+
+// ---------------------------------------------------------------- signed bank alert
+// Mule-account alert for a gang: what each bank / UPI app should freeze, signed with the node's Ed25519 key
+const download = (name, text, type) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type }));
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+};
+document.getElementById('gang-alert').onclick = () => {
+    const d = openGang;
+    if (!d) return;
+    withBusy(document.getElementById('gang-alert'), 'Signing…', async () => {
+        const alert = await fetchAPI(`/api/campaigns/${d.id}/alert`);
+        download(`mule-alert-${d.id}.json`, JSON.stringify(alert, null, 2), 'application/json');
+        const banks = Object.keys(alert.by_bank);
+        showToast(`Signed alert for ${banks.length ? banks.join(', ') : 'the fraud desk'} · key ${alert.signature.key_id}`);
+    });
+};
+
+// ---------------------------------------------------------------- scam email (.eml) intake
+// The same code path as the Gmail inbox: a forwarded scam becomes a reported case,
+// a direct scam email starts a decoy conversation.
+async function uploadEml(file) {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { showToast('That email is over 2 MB.', true); return; }
+    try {
+        const raw = await file.arrayBuffer();
+        const r = await fetchAPI('/api/intake/email', { method: 'POST', headers: { 'Content-Type': 'message/rfc822' }, body: raw });
+        showToast(r.action === 'report'
+            ? `Reported email: ${r.level} risk, ${plural(r.flags.length, 'red flag')}`
+            : 'Scam email received: the decoy is answering it');
+        if (r.session_id) selectSession(r.session_id);
+        pollData();
+    } catch (e) {
+        showToast(e.status ? e.message : OFFLINE_HELP, true);
+    }
+}
+const emlInput = document.getElementById('eml-file');
+document.getElementById('btn-eml').onclick = () => emlInput.click();
+emlInput.onchange = () => { uploadEml(emlInput.files[0]); emlInput.value = ''; };
+const slip = document.getElementById('new-form');
+slip.addEventListener('dragover', (e) => { e.preventDefault(); slip.classList.add('drop'); });
+slip.addEventListener('dragleave', () => slip.classList.remove('drop'));
+slip.addEventListener('drop', (e) => {
+    e.preventDefault();
+    slip.classList.remove('drop');
+    const f = e.dataTransfer.files[0];
+    if (f && /\.eml$/i.test(f.name)) uploadEml(f);
+    else if (f) showToast('Drop an email saved as .eml (Gmail: ⋮ → Download message).', true);
+});
+
+// ---------------------------------------------------------------- security console (admin)
+const secPanel = document.getElementById('sec-panel');
+const kv = (rows) => '<dl class="kv">' + rows.map(([k, v, cls]) =>
+    `<dt>${escapeHTML(k)}</dt><dd class="${cls || ''}">${v}</dd>`).join('') + '</dl>';
+const ok = (good, yes, no) => `<b class="${good ? 'good' : 'bad'}">${escapeHTML(good ? yes : no)}</b>`;
+const fmtTs = (iso) => iso ? CLOCK_FMT.format(new Date(iso)) : '-';
+
+async function loadSecurity(tab) {
+    document.querySelectorAll('.sec-tabs [role=tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab));
+    ['overview', 'audit', 'keys', 'integrations'].forEach(t => document.getElementById('sec-' + t).hidden = t !== tab);
+    try {
+        if (tab === 'overview') {
+            const o = await fetchAPI('/api/admin/security');
+            const seal = o.evidence_seal, audit = o.audit_log;
+            document.getElementById('sec-overview').innerHTML = `
+                <div class="sec-cards">
+                    <div class="sec-card"><span>Login</span><b>${escapeHTML(o.auth.toUpperCase())}</b><small>roles: admin, analyst · API keys: intake, lookup</small></div>
+                    <div class="sec-card"><span>Evidence seal</span><b class="${seal.tampered.length ? 'bad' : 'good'}">${seal.sealed}/${seal.cases}</b><small>${seal.tampered.length ? 'TAMPERED: ' + seal.tampered.map(escapeHTML).join(', ') : 'every case verified'}</small></div>
+                    <div class="sec-card"><span>Audit log</span><b class="${audit.ok ? 'good' : 'bad'}">${audit.ok ? 'INTACT' : 'BROKEN'}</b><small>${audit.entries} entries${audit.ok ? '' : ', broken at #' + audit.broken_at}</small></div>
+                    <div class="sec-card"><span>At rest</span><b class="${o.encryption.startsWith('AES') ? 'good' : 'bad'}">${o.encryption.startsWith('AES') ? 'AES-256' : 'OFF'}</b><small>retention ${o.retention_days} days</small></div>
+                </div>
+                ${kv([
+                    ['Encryption', escapeHTML(o.encryption)],
+                    ['Evidence seal', escapeHTML(seal.algorithm)],
+                    ['Listening on', escapeHTML(o.bind) + (o.tls ? ' · HTTPS' : ' · HTTP (use --tls-cert or a TLS proxy in production)')],
+                    ['Rate limits', escapeHTML(Object.values(o.rate_limits).join(' · '))],
+                    ['Cross-origin', escapeHTML(Array.isArray(o.cors) ? o.cors.join(', ') : o.cors)],
+                    ['Users', escapeHTML(o.users.join(', '))],
+                    ['Active API keys', String(o.api_keys)],
+                    ['Signing key', `<code>${escapeHTML(o.signing_key)}</code> (Ed25519, public key at /api/v1/public-key)`],
+                    ['Local tools', o.trusted_local_tools ? 'trusted from 127.0.0.1 (start with --strict to require keys)' : 'need an API key'],
+                    ['Last retention purge', escapeHTML(o.last_purge || '-')],
+                ])}
+                <div class="sec-actions"><button type="button" id="sec-purge">Run retention purge now</button></div>`;
+            document.getElementById('sec-purge').onclick = () => withBusy(document.getElementById('sec-purge'), 'Purging…', async () => {
+                const r = await postJSON('/api/admin/purge', {});
+                showToast(`Retention purge: ${plural(r.deleted.length, 'expired case')} deleted`);
+                loadSecurity('overview');
+            });
+        } else if (tab === 'audit') {
+            const a = await fetchAPI('/api/admin/audit?limit=200');
+            document.getElementById('sec-audit').innerHTML = `
+                <p class="sec-note">${ok(a.chain.ok, 'CHAIN INTACT', 'CHAIN BROKEN at #' + a.chain.broken_at)} · ${a.chain.entries} entries, each one hash-linked to the one before it. Editing or deleting any row breaks the chain from that row on.</p>
+                <table class="audit"><thead><tr><th>#</th><th>Time</th><th>Who</th><th>From</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>
+                ${a.entries.map(e => `<tr class="${/fail|locked|rate|injection|tamper/.test(e.action) ? 'warn' : ''}"><td>${e.seq}</td><td>${fmtTs(e.ts)}</td><td>${escapeHTML(e.actor)} <small>${escapeHTML(e.role)}</small></td><td>${escapeHTML(e.ip)}</td><td><b>${escapeHTML(e.action.replace(/_/g, ' '))}</b></td><td><code>${escapeHTML(e.target)}</code></td><td>${escapeHTML(e.detail)}</td></tr>`).join('')}
+                </tbody></table>`;
+        } else if (tab === 'keys') {
+            const keys = await fetchAPI('/api/admin/keys');
+            document.getElementById('key-list').innerHTML = keys.length ? `<table class="audit"><thead><tr><th>Name</th><th>Scope</th><th>Created</th><th>Last used</th><th>Uses</th><th></th></tr></thead><tbody>
+                ${keys.map(k => `<tr class="${k.revoked ? 'revoked' : ''}"><td>${escapeHTML(k.name)}</td><td><code>${escapeHTML(k.scope)}</code></td><td>${fmtDate(k.created)}</td><td>${k.last_used ? fmtDate(k.last_used) : '-'}</td><td>${k.uses || 0}</td>
+                <td>${k.revoked ? 'revoked' : `<button type="button" class="revoke" data-id="${escapeHTML(k.id)}">Revoke</button>`}</td></tr>`).join('')}</tbody></table>`
+                : '<p class="sec-note">No API keys yet. Banks and telecoms call /api/v1/lookup and /api/v1/check with a lookup key; SMS gateways post to /api/intake/sms with an intake key.</p>';
+            document.querySelectorAll('#key-list .revoke').forEach(b => b.onclick = () => withBusy(b, '…', async () => {
+                await postJSON(`/api/admin/keys/${b.dataset.id}/revoke`);
+                showToast('Key revoked: it stops working immediately');
+                loadSecurity('keys');
+            }));
+        } else {
+            const i = await fetchAPI('/api/integrations');
+            const g = i.gmail || {};
+            document.getElementById('sec-integrations').innerHTML = `
+                <h3>Gmail inbox</h3>
+                ${g.enabled ? kv([
+                    ['Address', `<code>${escapeHTML(g.address)}</code>`],
+                    ['How to use', 'Forward a scam email to this address: it becomes a case and the sender gets a verdict email. Emails sent straight to it start a decoy conversation (allow-listed senders only).'],
+                    ['Decoy replies to', escapeHTML((g.decoy_allow || []).join(', ') || 'nobody (log only)')],
+                    ['Last check', `${escapeHTML(g.last_poll || '-')}${g.last_error ? ' · <b class="bad">' + escapeHTML(g.last_error) + '</b>' : ''}`],
+                    ['Counts', `${g.received} received · ${g.reports} reports · ${g.decoy_threads} decoy threads · ${g.replied} replies sent`],
+                ]) + '<div class="sec-actions"><button type="button" id="gmail-poll">Check inbox now</button></div>'
+                : '<p class="sec-note">Off. Set SCAMBAITER_GMAIL_USER and SCAMBAITER_GMAIL_APP_PASSWORD (a Gmail App Password) and restart. Until then, drop a scam email saved as .eml on the intake slip: it takes the same path.</p>'}
+                <h3>Scammer's phone page</h3>
+                <p class="sec-note">${i.phone_links && i.phone_links.length
+                    ? 'Open on the phone (same Wi-Fi). The key after #k= pairs it, with intake rights only:<br>' + i.phone_links.map(l => `<code>${escapeHTML(l)}</code>`).join('<br>')
+                    : 'Off: start the backend with <code>--lan</code> (run_demo.bat does) to pair a phone.'}</p>
+                <h3>SMS gateway</h3>
+                <p class="sec-note">POST <code>/api/intake/sms</code> with an intake API key: JSON <code>{"from": "+91…", "text": "…"}</code> from an Android SMS-forwarder app, or a Twilio / Exotel form webhook (the decoy's reply comes back as TwiML).</p>
+                <h3>Public API for banks and telecoms</h3>
+                <p class="sec-note"><code>GET /api/v1/lookup?type=upi_id&amp;value=…</code> · <code>POST /api/v1/check</code> with a lookup API key. Alerts are signed: verify with <code>/api/v1/public-key</code>.</p>`;
+            const btn = document.getElementById('gmail-poll');
+            if (btn) btn.onclick = () => withBusy(btn, 'Checking…', async () => {
+                const r = await postJSON('/api/integrations/gmail/poll');
+                showToast(`Gmail: ${plural(r.fetched, 'new email')}`);
+                loadSecurity('integrations');
+                pollData();
+            });
+        }
+    } catch (e) {
+        showToast(e.status ? e.message : OFFLINE_HELP, true);
+    }
+}
+document.getElementById('btn-security').onclick = () => { secPanel.hidden = false; loadSecurity('overview'); document.getElementById('sec-close').focus(); };
+document.getElementById('sec-close').onclick = () => { secPanel.hidden = true; };
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') secPanel.hidden = true; });
+document.querySelectorAll('.sec-tabs [role=tab]').forEach(b => b.onclick = () => loadSecurity(b.dataset.tab));
+document.getElementById('key-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    withBusy(btn, 'Creating…', async () => {
+        const k = await postJSON('/api/admin/keys', { name: document.getElementById('key-name').value, scope: document.getElementById('key-scope').value });
+        const box = document.getElementById('key-new');
+        box.hidden = false;
+        box.innerHTML = `<b>Copy this key now: it is shown only once.</b><code>${escapeHTML(k.key)}</code>`;
+        document.getElementById('key-name').value = '';
+        loadSecurity('keys');
+    });
 });

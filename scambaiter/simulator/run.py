@@ -6,6 +6,9 @@ from typing import Any
 import httpx
 from contracts.models import GroundTruthScript
 
+# Only needed when the backend runs with --strict; local tools are trusted otherwise.
+API_HEADERS = {"X-API-Key": os.environ["SCAMBAITER_API_KEY"]} if os.environ.get("SCAMBAITER_API_KEY") else {}
+
 ROOT = Path(__file__).resolve().parent
 SCRIPTS_PATH = ROOT / "scripts.json"
 RUNS_PATH = ROOT / "runs.json"
@@ -166,7 +169,7 @@ def main() -> int:
     base = args.base_url.rstrip("/")
     try: runs = json.loads(RUNS_PATH.read_text(encoding="utf-8")) if RUNS_PATH.exists() else []
     except (OSError, json.JSONDecodeError): runs = []
-    with httpx.Client(timeout=httpx.Timeout(15.0, connect=5.0)) as client:
+    with httpx.Client(timeout=httpx.Timeout(15.0, connect=5.0), headers=API_HEADERS) as client:
         for i, script in enumerate(selected):
             persona = personas[i % len(personas)] if args.persona == "rotate" else args.persona
             first = client.post(base + "/api/sessions", json={"channel": "simulator", "persona": persona, "first_message": script.opening})

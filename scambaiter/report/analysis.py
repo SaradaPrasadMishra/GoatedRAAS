@@ -12,7 +12,7 @@ from contracts.models import Session
 # (name, pattern). Latin-script words sit inside \b...\b; Hindi (romanised) and Tamil words
 # sit outside it, because \b does not work reliably on Tamil script.
 RED_FLAGS: list[tuple[str, re.Pattern]] = [(name, re.compile(rx, re.I)) for name, rx in [
-    ("Urgency", r"\b(urgent|immediately|right now|today|hurry|fast|quick(ly)?|expire[sd]?|last (reminder|chance)|time is running"
+    ("Urgency", r"\b(urgent(ly)?|immediately|right now|today|hurry|fast|quick(ly)?|expire[sd]?|last (reminder|chance)|time is running"
                 r"|within \d+ ?(min|minutes|hours?)|abhi|turant|jaldi|sirf aaj)\b|உடனே|இன்று|அவசர"),
     ("Asks for OTP / PIN", r"\b(otp|pin|cvv|password|passcode)\b"),
     ("Demands payment", r"\b(pay|payment|transfer|deposit|fee|charges?|send (money|rs|₹)|collect request"
@@ -27,7 +27,17 @@ RED_FLAGS: list[tuple[str, re.Pattern]] = [(name, re.compile(rx, re.I)) for name
     ("Secrecy", r"\b(do not (tell|inform|share with)|don'?t tell|keep (it|this) (secret|confidential)"
                 r"|stay on (the|this) call|kisi ko mat)\b|யாரிடமும் சொல்ல"),
     ("Moves you to WhatsApp / Telegram", r"\b(whatsapp|telegram|t\.me|wa\.me|signal app)\b"),
+    # prompt injection: text written to take over an AI decoy or assistant, not a person
+    ("Tries to trick the AI",
+     r"\b(ignore|forget|disregard|override)\b.{0,30}\b(instructions?|rules|prompts?|guidelines|programming|above)\b"
+     r"|\bsystem prompt\b|\bdeveloper mode\b|\bjailbreak\b"
+     r"|\b(you are|you're|are you) (an? )?(ai|a\.i\.|bot|chat ?gpt|language model|llm|assistant)\b"
+     r"|\b(act|behave|respond) as (an? )?(ai|assistant|admin|developer|system)\b"
+     r"|\brepeat (after me|your instructions|the (text|words) above)\b"
+     r"|\b(print|reveal|show|tell me) (your|the) (prompt|instructions|rules|system)\b"
+     r"|<\s*/?\s*(system|assistant|im_start|im_end)\s*>|\[/?INST\]"),
 ]]
+INJECTION = RED_FLAGS[-1][1]
 
 _OTP = RED_FLAGS[1][1]
 _PAY = RED_FLAGS[2][1]

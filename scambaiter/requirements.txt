@@ -6,3 +6,5 @@ fastapi>=0.110
 uvicorn>=0.29
 # P2 extractor
 networkx>=3.2
+# Security (AES-256-GCM encryption at rest, Ed25519 signed alerts)
+cryptography>=42

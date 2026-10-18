@@ -12,10 +12,12 @@ import re
 import threading
 import time
 
-from contracts.models import (CONTRACT_VERSION, CreateSessionRequest, Graph, Health, Message, Session,
+from contracts.models import (CONTRACT_VERSION, CreateSessionRequest, Entity, Graph, Health, Message, Session,
                               SessionSummary, Stats, TurnResponse)
-from backend import bot, stubs
-from backend.store import Store, new_id, now_iso, time_wasted
+from contracts.normalize import normalise
+from backend import bot, intel, stubs
+from backend.security import injection_attempt, mask_text
+from backend.store import Store, new_id, now_iso, parse_iso, time_wasted
 
 log = logging.getLogger("scambaiter")
 MODULES: dict[str, str] = {}
@@ -67,6 +69,8 @@ class Service:
         # one turn at a time per session, but different sessions can run in parallel
         self._turn_locks: dict[str, threading.Lock] = {}
         self._turn_locks_guard = threading.Lock()
+        # set by main.py: audit(actor, role, ip, action, target, detail)
+        self.audit = None
 
     # ------------------------------------------------------------------ helpers
     def _lock_for(self, sid: str) -> threading.Lock:
@@ -110,10 +114,13 @@ class Service:
             self.turn(s.id, req.first_message)
         return self._require(s.id)
 
-    def turn(self, sid: str, text: str, reply_override: str | None = None, reply_delay: float = 0.0) -> TurnResponse:
+    def turn(self, sid: str, text: str, reply_override: str | None = None, reply_delay: float = 0.0,
+             no_reply: bool = False) -> TurnResponse:
         text = (text or "").strip()[:4000]
         if not text:
             raise ValueError("text must not be empty")
+        if injection_attempt(text):
+            self.audit_event("decoy", "prompt_injection_detected", sid, text[:120])
         with self._lock_for(sid):
             # 1-3: save scammer message, extract, classify (fast, no LLM)
             s = self._require(sid)
@@ -132,6 +139,10 @@ class Service:
 
             # 4: bot reply (may take a few seconds with the LLM; store is not locked meanwhile).
             #    A replay supplies the recorded reply instead, after a short "typing" pause.
+            if no_reply:   # a reported message (forwarded email, SMS report): evidence only, nobody to answer
+                return TurnResponse(session_id=sid, scammer_message=sm,
+                                    bot_reply=Message(id="m_none", session_id=sid, role="bot", text="", ts=sm.ts),
+                                    new_entities=new, scam_type=s.scam_type)
             if reply_override is not None:
                 time.sleep(reply_delay)
                 reply = reply_override
@@ -189,11 +200,15 @@ class Service:
                      entities_by_type=by_type, campaigns=len(self.graph().campaigns),
                      time_wasted_seconds=sum(s.time_wasted_seconds for s in sessions))
 
-    def report(self, sid: str) -> str:
-        s = self._require(sid)
+    def report(self, sid: str, shown: Session | None = None) -> str:
+        """`shown` is the copy to print (PII-masked for analysts); the seal is checked on the stored case."""
+        s = shown or self._require(sid)
         g = self.graph()
         try:
-            return render_report(s, g)
+            try:
+                return render_report(s, g, seal=self.store.verify(sid), source=self.store.get_meta(sid))
+            except TypeError:   # an older render.py without the seal section
+                return render_report(s, g)
         except Exception:  # noqa: BLE001
             log.exception("render_report crashed; using stub")
             return stubs.render_report(s, g)
@@ -239,7 +254,9 @@ class Service:
             if s is None:
                 continue
             a = analyse_session(s) if analyse_session else {"demanded": 0, "level": "LOW"}
-            cases.append({"id": s.id, "scam_type": s.scam_type, "channel": s.channel, "persona": s.persona,
+            src = self.store.get_meta(s.id).get("source")
+            channel = {"gmail": "email", "eml_upload": "email", "sms_gateway": "sms"}.get(src, s.channel)
+            cases.append({"id": s.id, "scam_type": s.scam_type, "channel": channel, "persona": s.persona,
                           "created_at": s.created_at, "time_wasted_seconds": s.time_wasted_seconds,
                           "demanded": a["demanded"], "level": a["level"], "replay": s.id in self.replay_ids})
             for e in s.entities:
@@ -330,3 +347,127 @@ class Service:
 
     def reset(self) -> None:
         self.store.reset()
+        self.replay_ids.clear()
+
+    # ------------------------------------------------------------------ audit + integrity
+    def audit_event(self, actor: str, action: str, target: str = "", detail: str = "") -> None:
+        if self.audit:
+            self.audit(actor, "system", "-", action, target, mask_text(detail))
+
+    def verify(self, sid: str) -> dict:
+        self._require(sid)
+        return self.store.verify(sid)
+
+    def verify_all(self) -> dict:
+        results = {sid: self.store.verify(sid) for sid in list(self.store.sessions)}
+        return {"cases": len(results), "sealed": sum(r["ok"] for r in results.values()),
+                "tampered": [sid for sid, r in results.items() if not r["ok"]]}
+
+    # ------------------------------------------------------------------ intake from real channels
+    def add_entities(self, sid: str, items: list[tuple[str, str]]) -> None:
+        """Identifiers known from the channel itself (the sender's email or phone), not from the text."""
+        with self._lock_for(sid):
+            s = self._require(sid)
+            first = next((m for m in s.messages if m.role == "scammer"), None)
+            if first is None:
+                return
+            have = {(e.type, e.value) for e in s.entities}
+            for etype, raw in items:
+                if not raw:
+                    continue
+                try:
+                    value = normalise(etype, raw)
+                except Exception:  # noqa: BLE001
+                    continue
+                if (etype, value) not in have and value.strip("+"):
+                    have.add((etype, value))
+                    s.entities.append(Entity(type=etype, value=value, raw=raw, message_id=first.id, confidence=1.0))
+            self.store.save(s)
+
+    def _new_session(self, channel: str, persona: str | None = None) -> Session:
+        s = Session(id=new_id("s_"), created_at=now_iso(), channel=channel,
+                    persona=persona if persona in bot.PERSONAS else self.default_persona,
+                    scam_type="unknown", status="active", messages=[], entities=[],
+                    time_wasted_seconds=0, is_simulation=True)
+        self.store.save(s)
+        return s
+
+    def ingest_report(self, text: str, meta: dict, extra_emails=(), extra_phones=(), channel: str = "simulator") -> Session:
+        """A scam someone reported (forwarded email, SMS report): a closed case, no decoy reply."""
+        s = self._new_session(channel)
+        self.store.set_meta(s.id, meta)
+        self.turn(s.id, text, no_reply=True)
+        self.add_entities(s.id, [("email", e) for e in extra_emails] + [("phone", p) for p in extra_phones])
+        return self.close(s.id)
+
+    def create_session_from(self, text: str, meta: dict, channel: str, extra_emails=(), extra_phones=()) -> Session:
+        """A scammer reached the decoy on a real channel (email, SMS gateway): the decoy answers."""
+        s = self._new_session(channel)
+        self.store.set_meta(s.id, meta)
+        self.turn(s.id, text)
+        self.add_entities(s.id, [("email", e) for e in extra_emails] + [("phone", p) for p in extra_phones])
+        return self._require(s.id)
+
+    def find_email_thread(self, refs: list[str]) -> str | None:
+        refs = set(refs)
+        if not refs:
+            return None
+        for sid, meta in self.store.all_meta().items():
+            if meta.get("mode") == "decoy" and refs & set(meta.get("thread", [])) and sid in self.store.sessions:
+                return sid
+        return None
+
+    def add_email_thread(self, sid: str, ids: list[str]) -> None:
+        meta = self.store.get_meta(sid)
+        meta["thread"] = list(dict.fromkeys(meta.get("thread", []) + [i for i in ids if i]))
+        self.store.set_meta(sid, meta)
+
+    def intake_sms(self, sender: str, text: str) -> dict:
+        """SMS gateway webhook: the scammer texted the decoy's number. Continues the sender's open case."""
+        text = (text or "").strip()
+        if not text:
+            raise ValueError("text must not be empty")
+        sender = (sender or "").strip()[:32]
+        if not re.fullmatch(r"\+?[0-9 ()-]{3,20}|[A-Za-z0-9-]{3,11}", sender):
+            raise ValueError("from must be a phone number or an SMS sender ID")
+        cutoff = time.time() - 6 * 3600
+        for sid, meta in self.store.all_meta().items():
+            s = self.store.get(sid)
+            if (meta.get("source") == "sms_gateway" and meta.get("peer") == sender and s and s.status == "active"
+                    and s.messages and parse_iso(s.messages[-1].ts).timestamp() > cutoff):
+                t = self.turn(sid, text)
+                return {"session_id": sid, "reply": t.bot_reply.text, "new_case": False}
+        meta = {"source": "sms_gateway", "mode": "decoy", "peer": sender}
+        phones = [sender] if len(re.sub(r"\D", "", sender)) >= 10 else []
+        s = self.create_session_from(text, meta, channel="sms", extra_phones=phones)
+        self.audit_event("sms-gateway", "sms_decoy_started", s.id, f"from {sender}")
+        reply = next((m.text for m in reversed(s.messages) if m.role == "bot"), "")
+        return {"session_id": s.id, "reply": reply, "new_case": True}
+
+    def sources(self) -> dict:
+        return self.store.all_meta()
+
+    # ------------------------------------------------------------------ real-world outputs
+    def complaint(self, sid: str) -> dict:
+        s = self._require(sid)
+        a = analyse_session(s) if analyse_session else {}
+        return intel.complaint(s, self.graph(), a, self.store.verify(sid), self.store.get_meta(sid))
+
+    def mule_alert(self, cid: str) -> dict:
+        d = self.dossier(cid)
+        sessions = [x for x in (self.store.get(c["id"]) for c in d["cases"]) if x]
+        return intel.mule_alert(d, sessions, {x.id: self.store.verify(x.id) for x in sessions})
+
+    def lookup(self, etype: str, value: str) -> dict:
+        if etype not in ENTITY_TYPES:
+            raise ValueError(f"type must be one of {', '.join(ENTITY_TYPES)}")
+        value = (value or "").strip()[:200]
+        if not value:
+            raise ValueError("value must not be empty")
+        return intel.lookup(etype, normalise(etype, value), self.store.all(), self.graph())
+
+    def purge(self, days: int) -> list[str]:
+        gone = self.store.purge(days)
+        for sid in gone:
+            self.replay_ids.discard(sid)
+        return gone

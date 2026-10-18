@@ -26,15 +26,20 @@ ollama pull qwen2.5:7b
 ```
 On a laptop with less than 16 GB RAM use `qwen2.5:1.5b` and `set OLLAMA_MODEL=qwen2.5:1.5b`.
 
-Start the backend (terminal 1):
+Start the backend (terminal 1), or double-click `run_demo.bat`:
 ```
 cd GoatedRAAS\scambaiter
 .venv\Scripts\activate
 set OLLAMA_KEEP_ALIVE=30m
-python -m backend.main --reset
+python -m backend.main --lan --reset
 ```
-The banner should say `extractor real`, `campaigns real`, `report real`, `bot Ollama qwen2.5:7b`.
-Open **http://localhost:8000** and press F11.
+The banner should say `extractor real`, `campaigns real`, `report real`, `bot Ollama qwen2.5:7b`,
+`security login on · encryption AES-256-GCM`. Open **http://localhost:8000**, sign in, press F11.
+
+**Sign in:** the first start creates `admin` and `analyst` with random passwords, printed in the
+backend window and saved in `scambaiter/data/FIRST_LOGIN.txt`. Change one with
+`python -m backend.security passwd admin`. `--lan` lets the scammer's phone join: the banner prints a
+phone link ending in `#k=…` that pairs it (without `--lan` the backend only listens on this laptop).
 
 Play the stage demo (terminal 2): three linked scams arrive 4 s apart.
 ```
@@ -61,9 +66,21 @@ python -m simulator.run --live
 - **Backup replay:** in rehearsal, open a good live-AI case and click *save for replay*; on stage press **Shift+R**
   to replay it (labelled REPLAY). Recordings stay on the laptop in `scambaiter/data/replays/`.
 
+### Security and real-world integration
+Login with admin/analyst roles, API keys, rate limits, encryption at rest, a tamper-evident seal on every
+message, a hash-chained audit log, PII masking, a prompt-injection guard, a Gmail inbox, an SMS-gateway
+webhook, an NCRP-ready complaint, signed mule-account alerts for banks, and a public lookup API.
+Threat model, how-to and judge demo: **[scambaiter/SECURITY.md](scambaiter/SECURITY.md)**.
+- **Gmail:** run `setup_gmail.bat` once (a demo Gmail with an App Password). Forward a scam email to it to
+  get a verdict email back; write to it from a teammate's address and the decoy replies in the thread.
+- **No internet?** Drop a scam email saved as `.eml` on the intake slip: same path, no Gmail needed.
+- **SECURITY** button (admin): audit log, API keys, integrations, the phone link.
+
 ## Check it
 ```
 python tools/check_contract.py all        # backend running; expect 62 passed, 0 failed
+python -m unittest backend.test_security  # 18 security + Gmail/SMS tests
+python -m backend.security verify         # every case seal + the audit log
 python -m simulator.run --scripts 35 --turns 6
 python -m simulator.evaluate --md         # writes pitch/metrics.md
 ```
@@ -71,7 +88,7 @@ python -m simulator.evaluate --md         # writes pitch/metrics.md
 ## What's inside (`scambaiter/`)
 | Folder | Owner | What it does |
 |---|---|---|
-| `backend/` | P1 | HTTP API, local-LLM bot with safety filter, SQLite storage |
+| `backend/` | P1 | HTTP API, local-LLM bot with safety filter, encrypted SQLite storage, security layer, Gmail/SMS intake, NCRP and bank-alert exports |
 | `extractor/` | P2 | Identifier extraction, scam-type classifier, gang linking |
 | `dashboard/`, `report/` | P3 | Live dashboard and printable evidence report |
 | `simulator/`, `pitch/` | P4 | 35 scripted scams, live demo driver, metrics, pitch notes |

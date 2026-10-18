@@ -5,8 +5,12 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 import httpx
+import os
 from contracts.models import EvalResult, GroundTruthScript
 from contracts.normalize import normalise
+
+# Only needed when the backend runs with --strict; local tools are trusted otherwise.
+API_HEADERS = {"X-API-Key": os.environ["SCAMBAITER_API_KEY"]} if os.environ.get("SCAMBAITER_API_KEY") else {}
 
 ROOT = Path(__file__).resolve().parent
 RUNS_PATH = ROOT / "runs.json"
@@ -46,7 +50,7 @@ def main() -> int:
     if not runs:
         print("runs.json is empty; run simulator.run first."); return 1
     sessions: dict[str, dict[str, Any]] = {}
-    with httpx.Client(timeout=httpx.Timeout(15.0, connect=5.0)) as client:
+    with httpx.Client(timeout=httpx.Timeout(15.0, connect=5.0), headers=API_HEADERS) as client:
         for run in runs:
             sid = run["session_id"]
             r = client.get(f"{base}/api/sessions/{sid}"); r.raise_for_status(); sessions[sid] = r.json()

@@ -19,8 +19,15 @@ entity F1 1.00, campaign purity 1.00, campaign recall 7/7, scam-type accuracy 1.
 (keywords were tuned on these scripts, so expect lower on live-typed messages).
 Re-measure with P1's real backend before putting numbers on slides.
 
+## Security layer (added after judges' feedback)
+See `SECURITY.md`. The dashboard needs a login (passwords in `data/FIRST_LOGIN.txt` on first run);
+local scripts (simulator, checker) are trusted from 127.0.0.1 without a key. Cases are encrypted
+(AES-256-GCM) and every message is sealed in an HMAC hash chain; `python -m backend.security verify`
+checks them. `python -m unittest backend.test_security` runs 18 tests. Gmail: `setup_gmail.bat`.
+The phone page needs the link with `#k=…` printed by `python -m backend.main --lan`.
+
 ## Rules
-1. Never edit `contracts/`, `tools/`, or `backend/`.
+1. Never edit `contracts/` or `tools/`.
 2. Keep every element id used in `dashboard/app.js`, the `API_BASE` constant, and the
    SIMULATION badge — the checker greps for them.
 3. Must work with Wi-Fi off: no CDNs, no web fonts. Fonts in use ship with Windows

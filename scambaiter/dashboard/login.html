@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0e0c0b">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23ff3b1f'/%3E%3Cpath d='M9 22l7-12 7 12z' fill='none' stroke='%230e0c0b' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <title>Scambaiter · Sign in</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-page">
+    <div class="grain" aria-hidden="true"></div>
+    <div class="tape" aria-hidden="true">
+        <div class="tape-track">
+            <span>AUTHORISED ANALYSTS ONLY</span><b>▲</b><span>EVERY ACTION IS AUDITED</span><b>▲</b><span>SIMULATION</span><b>▲</b>
+            <span>AUTHORISED ANALYSTS ONLY</span><b>▲</b><span>EVERY ACTION IS AUDITED</span><b>▲</b><span>SIMULATION</span><b>▲</b>
+        </div>
+    </div>
+    <main class="login-wrap">
+        <div class="login-brand">
+            <h1 class="logo" translate="no">SCAMBAITER<sup>®</sup></h1>
+            <p class="login-tag">Threat intercept console</p>
+            <ul class="login-points">
+                <li>Evidence encrypted at rest (AES-256-GCM)</li>
+                <li>Every message sealed in a hash chain</li>
+                <li>Every action in a tamper-evident audit log</li>
+            </ul>
+        </div>
+        <form class="login-card" id="login-form" novalidate>
+            <div class="slip-head"><h3>Sign in</h3><span>FORM 1930-S</span></div>
+            <label for="username">Username</label>
+            <input id="username" name="username" autocomplete="username" required autofocus spellcheck="false">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <p class="login-error" id="login-error" role="alert" hidden></p>
+            <button type="submit" id="login-btn">Enter console <span aria-hidden="true">→</span></button>
+            <p class="login-hint">First run: the passwords are printed in the backend window and saved in <code>data/FIRST_LOGIN.txt</code>.
+                Five wrong passwords lock this address for 5 minutes.</p>
+        </form>
+    </main>
+    <script src="login.js"></script>
+</body>
+</html>

@@ -44,7 +44,31 @@ def _fmt_clock(ts: str) -> str:
         return html.escape(str(ts))
 
 
-def render_report(session: Session, graph: Graph) -> str:
+def _seal_html(seal: dict | None, session: Session) -> str:
+    """Evidence integrity: the hash-chain seal checked against the stored case."""
+    if not seal:
+        return ""
+    import hashlib
+    digest = hashlib.sha256("\n".join(f"{m.ts}|{m.role}|{m.text}" for m in session.messages).encode("utf-8")).hexdigest()
+    if seal.get("ok"):
+        n = seal["messages"]
+        what = "The message matches" if n == 1 else f"All {n} messages match"
+        verdict = (f'<p class="seal-ok display">SEALED · VERIFIED</p><p>{what} the '
+                   f'seal made when they were captured: nothing was edited, removed or reordered since.</p>')
+    else:
+        verdict = (f'<p class="seal-bad display">TAMPERED</p><p>{html.escape(seal.get("reason") or "The transcript does not match its seal.")} '
+                   f'Do not rely on this transcript as evidence.</p>')
+    return f"""
+            <h2 class="display">Evidence integrity</h2>
+            <div class="seal">{verdict}
+                <p class="mono">Method: {html.escape(seal.get("algorithm") or "HMAC-SHA256 hash chain")}, one link per message
+                {' · stored encrypted (AES-256-GCM)' if seal.get("encrypted") else ''}</p>
+                <p class="mono">Chain head: {html.escape((seal.get("head") or "-")[:32])}</p>
+                <p class="mono">Transcript SHA-256: {digest}</p>
+            </div>"""
+
+
+def render_report(session: Session, graph: Graph, seal: dict | None = None, source: dict | None = None) -> str:
     # Safely escape all identifiers upfront
     escaped_entities = [
         {
@@ -121,7 +145,8 @@ def render_report(session: Session, graph: Graph) -> str:
     flags_html = "".join(f'<span class="flag">{html.escape(f)}</span>' for f in a["flags"]) or '<span class="flag">none detected</span>'
     sid = html.escape(session.id)
     scam_type = html.escape(session.scam_type.replace("_", " ").title())
-    channel = html.escape(session.channel.title())
+    src = (source or {}).get("source")
+    channel = html.escape({"gmail": "Email", "eml_upload": "Email", "sms_gateway": "SMS"}.get(src, session.channel.title()))
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -216,6 +241,11 @@ def render_report(session: Session, graph: Graph) -> str:
     .msg-text {{ font-size: 14.5px; overflow-wrap: anywhere; }}
     mark {{ background: #fff; border: 1.5px solid; border-radius: 5px; padding: 0 4px; font-family: "Cascadia Mono", Consolas, monospace; font-weight: 700; font-size: .92em; }}
 
+    .seal {{ border: 1px solid #e3e7f3; padding: 12px 16px; font-size: 13px; }}
+    .seal p {{ margin: 4px 0; overflow-wrap: anywhere; }}
+    .seal .mono {{ font-size: 11px; color: #5b6380; }}
+    .seal-ok, .seal-bad {{ font-size: 20px; font-weight: 700; margin: 0 0 4px; }}
+    .seal-ok {{ color: #0f8a5f; }} .seal-bad {{ color: #c4210d; }}
     .action {{ margin-top: 26px; padding: 16px 18px; background: #0e0c0b; color: #fff; border-left: 8px solid #ff3b1f; }}
     .action h2 {{ color: #fff; margin: 0 0 8px; }}
     .action ul {{ margin: 0; padding-left: 20px; }}
@@ -287,6 +317,8 @@ def render_report(session: Session, graph: Graph) -> str:
             <h2 class="display">Full transcript</h2>
             <div class="transcript">{transcript_html}
             </div>
+
+{_seal_html(seal, session)}
 
             <section class="action">
                 <h2 class="display">What to do now</h2>
