@@ -135,6 +135,7 @@
             <div class="intel" id="intel" hidden>
                 <div class="intel-row"><span class="intel-k">Red flags</span><span class="risk" id="risk"></span><span class="flags" id="flags"></span></div>
                 <div class="intel-row"><span class="intel-k">Safety</span><span class="safety" id="safety"></span></div>
+                <div class="intel-row" id="links-row" hidden><span class="intel-k">Links</span><span class="links" id="links"></span></div>
                 <div class="intel-row"><span class="intel-k">Evidence</span><span class="seal-badge" id="seal"></span><span class="src-info" id="src-info"></span></div>
             </div>
             <div class="chat-window" id="chat-window" aria-live="polite">
@@ -158,6 +159,18 @@
                 <div class="check-actions">
                     <button type="button" id="check-engage">Engage decoy with this →</button>
                 </div>
+            </div>
+            <div class="check-panel link-panel" id="link-panel" role="dialog" aria-labelledby="link-verdict" hidden>
+                <div class="check-head">
+                    <span class="stage-label">Link sandbox</span>
+                    <button type="button" class="check-x" id="link-close" aria-label="Close">✕</button>
+                </div>
+                <h3 class="check-verdict" id="link-verdict"></h3>
+                <div class="check-sub" id="link-sub"></div>
+                <ul class="check-flags" id="link-findings"></ul>
+                <div class="link-chain" id="link-chain"></div>
+                <div class="check-ids" id="link-ids"></div>
+                <p class="check-advice" id="link-note"></p>
             </div>
             <div class="chat-input" id="chat-input-area" style="display: none;">
                 <label class="sr-only" for="manual-msg">Next scammer message</label>

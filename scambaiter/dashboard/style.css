@@ -672,3 +672,21 @@ body.login-page { overflow: auto; height: auto; min-height: 100vh; }
 .login-hint { margin: 10px 0 0; font-size: 12px; color: #6f665a; line-height: 1.45; }
 .login-hint code { font-family: var(--mono); }
 @media (max-width: 760px) { .login-wrap { grid-template-columns: 1fr; gap: 20px; } }
+
+/* ----------------------------------------------------------- link sandbox */
+.intel-row .links { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.link-chip {
+    min-height: 0; padding: 1px 8px; font-family: var(--mono); font-stretch: normal; font-size: 11px; font-weight: 700;
+    letter-spacing: 0; text-transform: none; background: transparent; color: var(--tape); border: 1.5px dashed var(--tape);
+}
+.link-chip:hover { transform: none; box-shadow: none; background: var(--tape); color: var(--ink); }
+.link-chip.v-bad { border: 0; background: var(--red); color: var(--ink); }
+.link-chip.v-warn { border: 0; background: var(--tape); color: var(--ink); }
+.link-chip.v-ok { border: 0; background: var(--paper-2); color: var(--ink); }
+.link-panel .check-flags li.sev-high { border-left-color: var(--red-deep); }
+.link-panel .check-flags li.sev-medium { border-left-color: var(--tape); }
+.link-panel .check-flags li.sev-low { border-left-color: #a39a8e; }
+.link-chain { font-family: var(--mono); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.link-chain code { font-weight: 700; }
+.link-chain small { color: #6f665a; }
+.risk.medium { background: var(--tape); }

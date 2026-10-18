@@ -9,6 +9,8 @@ import tempfile
 import unittest
 
 os.environ["SCAMBAITER_LLM"] = "fallback"
+os.environ["SCAMBAITER_SANDBOX"] = "demo"
+os.environ["SCAMBAITER_SANDBOX_AUTO"] = "0"
 
 from contracts.models import CreateSessionRequest  # noqa: E402
 from backend import security  # noqa: E402
@@ -249,6 +251,61 @@ class SmsAndAlertTest(Base):
         self.assertTrue(r["known"])
         self.assertEqual(r["bank"], "Axis Bank (via Google Pay)")
         self.assertFalse(self.svc.lookup("phone", "9000000000")["known"])
+
+
+class SandboxTest(Base):
+    def test_refuses_internal_and_odd_targets(self):
+        from backend.sandbox import Blocked, _check_target
+        for url in ("http://127.0.0.1/", "http://10.1.2.3/", "http://169.254.169.254/latest/meta-data",
+                    "file:///etc/passwd", "ftp://example.com/x", "http://localhost/", "http://u:p@example.com/",
+                    "http://[::1]/"):
+            with self.assertRaises(Blocked, msg=url):
+                _check_target(url, set())
+
+    def test_redirect_loop_is_cut(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        import threading
+        from backend.sandbox import Blocked, fetch
+
+        class Loop(BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_GET(self):
+                self.send_response(302)
+                self.send_header("Location", "/again")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Loop)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        port = srv.server_address[1]
+        with self.assertRaises(Blocked):
+            fetch(f"http://127.0.0.1:{port}/", {f"127.0.0.1:{port}"})
+        srv.shutdown()
+
+    def test_demo_detonation_finds_phishing_and_links_gangs(self):
+        a = self.case("Update KYC now at sbi-kyc-verify.in/login or your account is blocked")
+        b = self.case("Dear customer complete YONO KYC at yono-sbi-update.com/kyc today")
+        r = self.svc.detonate(a.id, "sbi-kyc-verify.in/login")
+        self.assertEqual(r["verdict"], "MALICIOUS")
+        text = " ".join(f["finding"] for f in r["findings"])
+        self.assertIn("password", text)
+        self.assertIn("OTP", text)
+        self.assertIn(".apk", text)
+        self.assertIn("SBI", text)
+        self.assertTrue(r["simulation"])
+        self.assertIn({"type": "upi_id", "value": "sbi.verify.desk@ybl"}, r["new_identifiers"])
+        self.svc.detonate(b.id, "yono-sbi-update.com/kyc")
+        camp = self.svc.graph().campaigns
+        self.assertEqual(len(camp), 1)
+        self.assertEqual(set(camp[0].session_ids), {a.id, b.id})   # linked only through the page's UPI ID
+        self.assertIn("sbi-kyc-verify.in/login", self.svc.links(a.id)["links"])
+
+    def test_apk_download(self):
+        s = self.case("Install the update: sbi-help.in/app/SBI.apk")
+        r = self.svc.detonate(s.id, "sbi-help.in/app/SBI.apk")
+        self.assertEqual(r["verdict"], "MALICIOUS")
+        self.assertIn("app installer", r["findings"][0]["finding"])
 
 
 if __name__ == "__main__":

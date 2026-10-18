@@ -332,6 +332,7 @@ class Handler(BaseHTTPRequestHandler):
             (r"/api/campaigns/(c_[0-9]+)/dossier", "analyst", self.dossier),
             (r"/api/campaigns/(c_[0-9]+)/alert", "analyst", self.alert),
             (rf"/api/sessions/{_SESSION}/analysis", "analyst", lambda p, sid: self._send(200, S.analysis(sid))),
+            (rf"/api/sessions/{_SESSION}/links", "analyst", lambda p, sid: self._send(200, S.links(sid))),
             (r"/api/admin/audit", "admin", lambda p: self._send(200, {
                 "entries": C.audit.entries(min(500, int((q.get("limit") or ["200"])[0]))), "chain": C.audit.verify()})),
             (r"/api/admin/keys", "admin", lambda p: self._send(200, C.keys.list())),
@@ -359,6 +360,7 @@ class Handler(BaseHTTPRequestHandler):
             (r"/api/replays", "analyst", self.start_replay),
             (rf"/api/sessions/{_SESSION}/save-replay", "analyst",
              lambda p, sid: (self._body(), self.audit(p, "replay_saved", sid), self._send(200, S.save_replay(sid)))),
+            (rf"/api/sessions/{_SESSION}/detonate", "analyst", self.detonate),
             (r"/api/intake/sms", "intake", self.intake_sms),
             (r"/api/intake/email", "intake", self.intake_email),
             (r"/api/integrations/gmail/poll", "admin", self.gmail_poll),
@@ -466,6 +468,15 @@ class Handler(BaseHTTPRequestHandler):
         self.audit(p, "replay_started", r["session_id"], r["recording"])
         self._send(200, r)
 
+    def detonate(self, p, sid):
+        url = str(self._body().get("url", ""))
+        ok, retry = C.limiter.allow("sandbox", p["name"], 20)
+        if not ok:
+            raise HttpError(429, "sandbox limit: 20 links a minute", {"Retry-After": str(retry)})
+        r = C.service.detonate(sid, url)
+        self.audit(p, "link_detonated", sid, f"{url} -> {r['verdict']}")
+        self._send(200, r)
+
     # ------------------------------------------------------------ admin
     def reset(self, p):
         self._body()
@@ -517,6 +528,7 @@ class Handler(BaseHTTPRequestHandler):
             "api_keys": len([k for k in C.keys.list() if not k["revoked"]]),
             "signing_key": C.service.store.keys.key_id(),
             "gmail": C.mail.status if C.mail else {"enabled": False},
+            "link_sandbox": C.service.sandbox.status(),
         }
 
     # ------------------------------------------------------------ integrations
@@ -527,6 +539,7 @@ class Handler(BaseHTTPRequestHandler):
             port = self.server.server_address[1]
             phone = [f"{scheme}://{ip}:{port}/scammer#k={C.service.store.keys.intake_key}" for ip in _lan_ips()]
         return {"gmail": C.mail.status if C.mail else {"enabled": False}, "phone_links": phone,
+                "link_sandbox": C.service.sandbox.status(),
                 "sms_webhook": "/api/intake/sms", "email_upload": "/api/intake/email",
                 "public_api": ["/api/v1/check", "/api/v1/lookup", "/api/v1/public-key"]}
 
@@ -651,6 +664,8 @@ def main(argv=None) -> None:
         print("   FIRST RUN: logins created (also saved in data/FIRST_LOGIN.txt):")
         for u, pw in C.accounts.created.items():
             print(f"      {u:<8} {pw}")
+    sb = S.sandbox.status()
+    print(f"   sandbox    links checked in {sb['mode']} mode ({sb['egress']})")
     print(f"   gmail      {'on: ' + C.mail.cfg['user'] if C.mail.cfg else 'off (set SCAMBAITER_GMAIL_USER / _APP_PASSWORD)'}")
     print(f"   dashboard  {scheme}://localhost:{args.port}/")
     if C.host != "127.0.0.1":

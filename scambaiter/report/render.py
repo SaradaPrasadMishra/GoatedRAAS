@@ -68,6 +68,26 @@ def _seal_html(seal: dict | None, session: Session) -> str:
             </div>"""
 
 
+def _links_html(source: dict | None) -> str:
+    """What the link sandbox found on each scam link."""
+    links = (source or {}).get("links") or {}
+    if not links:
+        return ""
+    cards = ""
+    for url, r in links.items():
+        verdict = html.escape(str(r.get("verdict", "")))
+        cls = "seal-bad" if verdict == "MALICIOUS" else "seal-ok" if verdict == "NO SIGNS FOUND" else ""
+        finds = "".join(f"<li>{html.escape(f['finding'])}</li>" for f in r.get("findings", [])) or "<li>No findings</li>"
+        chain = " → ".join(html.escape(h["url"]) for h in r.get("chain", []))
+        cards += f"""
+                <div class="seal"><p class="{cls} display">{verdict}{' · SIMULATION' if r.get('simulation') else ''}</p>
+                <p class="mono">{html.escape(url)}</p><ul>{finds}</ul>
+                <p class="mono">{('Path: ' + chain) if chain else html.escape(r.get('reason') or '')}</p>
+                <p class="mono">Server {html.escape(str(r.get('ip') or '-'))} · page SHA-256 {html.escape((r.get('sha256') or '-')[:32])} · checked {html.escape(str(r.get('checked_at') or ''))}</p></div>"""
+    return f"""
+            <h2 class="display">Link analysis (sandbox)</h2>{cards}"""
+
+
 def render_report(session: Session, graph: Graph, seal: dict | None = None, source: dict | None = None) -> str:
     # Safely escape all identifiers upfront
     escaped_entities = [
@@ -243,6 +263,8 @@ def render_report(session: Session, graph: Graph, seal: dict | None = None, sour
 
     .seal {{ border: 1px solid #e3e7f3; padding: 12px 16px; font-size: 13px; }}
     .seal p {{ margin: 4px 0; overflow-wrap: anywhere; }}
+    .seal + .seal {{ margin-top: 8px; }}
+    .seal ul {{ margin: 4px 0; padding-left: 20px; }}
     .seal .mono {{ font-size: 11px; color: #5b6380; }}
     .seal-ok, .seal-bad {{ font-size: 20px; font-weight: 700; margin: 0 0 4px; }}
     .seal-ok {{ color: #0f8a5f; }} .seal-bad {{ color: #c4210d; }}
@@ -318,6 +340,7 @@ def render_report(session: Session, graph: Graph, seal: dict | None = None, sour
             <div class="transcript">{transcript_html}
             </div>
 
+{_links_html(source)}
 {_seal_html(seal, session)}
 
             <section class="action">

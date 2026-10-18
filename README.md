@@ -74,12 +74,14 @@ Threat model, how-to and judge demo: **[scambaiter/SECURITY.md](scambaiter/SECUR
 - **Gmail:** run `setup_gmail.bat` once (a demo Gmail with an App Password). Forward a scam email to it to
   get a verdict email back; write to it from a teammate's address and the decoy replies in the thread.
 - **No internet?** Drop a scam email saved as `.eml` on the intake slip: same path, no Gmail needed.
+- **Link sandbox:** a captured link shows **check in sandbox ▶**: the verdict, what the page asks for, and the
+  payment details on it (added to the case). Demo mode uses a built-in fake scam site, so it works offline.
 - **SECURITY** button (admin): audit log, API keys, integrations, the phone link.
 
 ## Check it
 ```
 python tools/check_contract.py all        # backend running; expect 62 passed, 0 failed
-python -m unittest backend.test_security  # 18 security + Gmail/SMS tests
+python -m unittest backend.test_security  # 22 security, Gmail/SMS and sandbox tests
 python -m backend.security verify         # every case seal + the audit log
 python -m simulator.run --scripts 35 --turns 6
 python -m simulator.evaluate --md         # writes pitch/metrics.md

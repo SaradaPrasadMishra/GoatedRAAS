@@ -16,6 +16,7 @@ from contracts.models import (CONTRACT_VERSION, CreateSessionRequest, Entity, Gr
                               SessionSummary, Stats, TurnResponse)
 from contracts.normalize import normalise
 from backend import bot, intel, stubs
+from backend.sandbox import Sandbox
 from backend.security import injection_attempt, mask_text
 from backend.store import Store, new_id, now_iso, parse_iso, time_wasted
 
@@ -71,6 +72,10 @@ class Service:
         self._turn_locks_guard = threading.Lock()
         # set by main.py: audit(actor, role, ip, action, target, detail)
         self.audit = None
+        self._meta_lock = threading.Lock()
+        # link sandbox: an analyst sends a captured link to it (SCAMBAITER_SANDBOX_AUTO=1 checks every new link)
+        self.sandbox = Sandbox(extract=lambda t: [(e.type, e.value) for e in self._safe_extract(t, "sandbox")])
+        self.auto_detonate = os.environ.get("SCAMBAITER_SANDBOX_AUTO", "0") == "1"
 
     # ------------------------------------------------------------------ helpers
     def _lock_for(self, sid: str) -> threading.Lock:
@@ -136,6 +141,10 @@ class Service:
             s.status = "active"
             s.time_wasted_seconds = time_wasted(s)
             self.store.save(s)  # dashboard sees the scammer message + entities immediately
+            if self.auto_detonate:
+                for e in new:
+                    if e.type == "url":
+                        threading.Thread(target=self._auto_detonate, args=(sid, e.value), daemon=True).start()
 
             # 4: bot reply (may take a few seconds with the LLM; store is not locked meanwhile).
             #    A replay supplies the recorded reply instead, after a short "typing" pause.
@@ -364,13 +373,16 @@ class Service:
                 "tampered": [sid for sid, r in results.items() if not r["ok"]]}
 
     # ------------------------------------------------------------------ intake from real channels
-    def add_entities(self, sid: str, items: list[tuple[str, str]]) -> None:
-        """Identifiers known from the channel itself (the sender's email or phone), not from the text."""
+    def add_entities(self, sid: str, items: list[tuple[str, str]], message_id: str | None = None,
+                     confidence: float = 1.0) -> list[tuple[str, str]]:
+        """Identifiers known from outside the text: the sender's email or phone, or a scam page."""
+        added = []
         with self._lock_for(sid):
             s = self._require(sid)
-            first = next((m for m in s.messages if m.role == "scammer"), None)
+            first = next((m for m in s.messages if m.id == message_id), None) or \
+                next((m for m in s.messages if m.role == "scammer"), None)
             if first is None:
-                return
+                return added
             have = {(e.type, e.value) for e in s.entities}
             for etype, raw in items:
                 if not raw:
@@ -381,8 +393,10 @@ class Service:
                     continue
                 if (etype, value) not in have and value.strip("+"):
                     have.add((etype, value))
-                    s.entities.append(Entity(type=etype, value=value, raw=raw, message_id=first.id, confidence=1.0))
+                    added.append((etype, value))
+                    s.entities.append(Entity(type=etype, value=value, raw=raw, message_id=first.id, confidence=confidence))
             self.store.save(s)
+        return added
 
     def _new_session(self, channel: str, persona: str | None = None) -> Session:
         s = Session(id=new_id("s_"), created_at=now_iso(), channel=channel,
@@ -418,9 +432,41 @@ class Service:
         return None
 
     def add_email_thread(self, sid: str, ids: list[str]) -> None:
-        meta = self.store.get_meta(sid)
-        meta["thread"] = list(dict.fromkeys(meta.get("thread", []) + [i for i in ids if i]))
-        self.store.set_meta(sid, meta)
+        with self._meta_lock:
+            meta = self.store.get_meta(sid)
+            meta["thread"] = list(dict.fromkeys(meta.get("thread", []) + [i for i in ids if i]))
+            self.store.set_meta(sid, meta)
+
+    # ------------------------------------------------------------------ link sandbox
+    def detonate(self, sid: str, url: str) -> dict:
+        """Open a captured link in the sandbox; identifiers printed on the page join the case."""
+        s = self._require(sid)
+        url = (url or "").strip()
+        if not url:
+            raise ValueError("url must not be empty")
+        r = self.sandbox.detonate(url)
+        ent = next((e for e in s.entities if e.type == "url" and (e.value == url or e.raw == url)), None)
+        new = self.add_entities(sid, [(i["type"], i["value"]) for i in r.get("identifiers", [])
+                                      if i["type"] != "url"], message_id=ent.message_id if ent else None, confidence=0.9)
+        r["new_identifiers"] = [{"type": t, "value": v} for t, v in new]
+        with self._meta_lock:
+            meta = self.store.get_meta(sid)
+            links = meta.get("links", {})
+            links[url] = r
+            meta["links"] = links
+            self.store.set_meta(sid, meta)
+        self.audit_event("sandbox", "link_detonated", sid, f"{url} -> {r['verdict']}")
+        return r
+
+    def _auto_detonate(self, sid: str, url: str) -> None:
+        try:
+            self.detonate(sid, url)
+        except Exception:  # noqa: BLE001
+            log.exception("sandbox check of %s failed", url)
+
+    def links(self, sid: str) -> dict:
+        self._require(sid)
+        return {"sandbox": self.sandbox.status(), "links": self.store.get_meta(sid).get("links", {})}
 
     def intake_sms(self, sender: str, text: str) -> dict:
         """SMS gateway webhook: the scammer texted the decoy's number. Continues the sender's open case."""

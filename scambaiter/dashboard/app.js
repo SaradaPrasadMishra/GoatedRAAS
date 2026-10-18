@@ -159,7 +159,7 @@ document.getElementById('btn-logout').onclick = async () => {
 };
 
 let lastStats = null, lastSessions = [], lastGraph = null, currentSession = null;
-let sources = {}, currentSeal = null;   // where each case came from (Gmail, SMS gateway, .eml); evidence seal of the open case
+let sources = {}, currentSeal = null, currentLinks = null;   // where each case came from (Gmail, SMS gateway, .eml); evidence seal of the open case
 const SOURCE_TAG = { gmail: '✉ EMAIL', eml_upload: '✉ EMAIL', sms_gateway: 'SMS GATEWAY' };
 const IDLE_CAP = 120; // a silent scammer stops counting after 2 minutes
 
@@ -252,6 +252,9 @@ async function pollData() {
             currentSession = sessionData;
             currentAnalysis = await fetchAPI(`/api/sessions/${currentSessionId}/analysis`).catch(() => null);
             currentSeal = await fetchAPI(`/api/sessions/${currentSessionId}/verify`).catch(() => null);
+            currentLinks = sessionData.entities.some(e => e.type === 'url')
+                ? await fetchAPI(`/api/sessions/${currentSessionId}/links`).catch(() => currentLinks) : null;
+            renderLinks(sessionData);
             renderChat(sessionData);
             renderIntel(sessionData, currentAnalysis);
         }
@@ -854,6 +857,9 @@ async function loadSecurity(tab) {
                 <p class="sec-note">${i.phone_links && i.phone_links.length
                     ? 'Open on the phone (same Wi-Fi). The key after #k= pairs it, with intake rights only:<br>' + i.phone_links.map(l => `<code>${escapeHTML(l)}</code>`).join('<br>')
                     : 'Off: start the backend with <code>--lan</code> (run_demo.bat does) to pair a phone.'}</p>
+                <h3>Link sandbox</h3>
+                <p class="sec-note">Mode <b>${escapeHTML(i.link_sandbox.mode)}</b> · egress: ${escapeHTML(i.link_sandbox.egress)} · JavaScript ${escapeHTML(i.link_sandbox.javascript)} · forms ${escapeHTML(i.link_sandbox.forms)} · downloads ${escapeHTML(i.link_sandbox.downloads)}.
+                Live mode: <code>SCAMBAITER_SANDBOX=live</code> on an isolated machine with <code>SCAMBAITER_SANDBOX_PROXY</code> set to a separate egress.</p>
                 <h3>SMS gateway</h3>
                 <p class="sec-note">POST <code>/api/intake/sms</code> with an intake API key: JSON <code>{"from": "+91…", "text": "…"}</code> from an Android SMS-forwarder app, or a Twilio / Exotel form webhook (the decoy's reply comes back as TwiML).</p>
                 <h3>Public API for banks and telecoms</h3>
@@ -886,3 +892,60 @@ document.getElementById('key-form').addEventListener('submit', (e) => {
         loadSecurity('keys');
     });
 });
+
+// ---------------------------------------------------------------- link sandbox
+// Captured links are opened in the sandbox (never by the decoy): verdict, redirect path, what the page
+// asks for, and payment details printed on it, which join the case and can link gangs.
+const VERDICT_CLS = { MALICIOUS: 'v-bad', SUSPICIOUS: 'v-warn', 'NO SIGNS FOUND': 'v-ok' };
+let linksKey = '';
+function renderLinks(session) {
+    const row = document.getElementById('links-row');
+    const urls = session.entities.filter(e => e.type === 'url');
+    row.hidden = !urls.length;
+    if (!urls.length) return;
+    const res = (currentLinks && currentLinks.links) || {};
+    const key = session.id + JSON.stringify(urls.map(u => [u.value, res[u.value] && res[u.value].verdict]));
+    if (key === linksKey) return;
+    linksKey = key;
+    const box = document.getElementById('links');
+    box.innerHTML = urls.map(u => {
+        const r = res[u.value];
+        return `<button type="button" class="link-chip ${r ? VERDICT_CLS[r.verdict] || 'v-warn' : ''}" data-url="${escapeHTML(u.value)}">` +
+            `${escapeHTML(u.value.length > 34 ? u.value.slice(0, 33) + '…' : u.value)} · ${r ? escapeHTML(r.verdict) : 'check in sandbox ▶'}</button>`;
+    }).join('');
+    box.querySelectorAll('.link-chip').forEach(b => b.onclick = () => openLink(b.dataset.url, b));
+}
+
+async function openLink(url, btn) {
+    let r = currentLinks && currentLinks.links && currentLinks.links[url];
+    if (!r) {
+        await withBusy(btn, 'opening in sandbox…', async () => {
+            r = await postJSON(`/api/sessions/${currentSessionId}/detonate`, { url });
+        });
+        if (!r) return;
+        pollData();
+    }
+    const v = document.getElementById('link-verdict');
+    v.textContent = r.verdict;
+    v.className = 'check-verdict' + (r.verdict === 'MALICIOUS' ? ' high' : '');
+    document.getElementById('link-sub').innerHTML =
+        `<span class="risk ${r.verdict === 'MALICIOUS' ? 'high' : r.verdict === 'SUSPICIOUS' ? 'medium' : 'low'}">${escapeHTML(r.verdict)}</span>` +
+        `<span>${escapeHTML(url)}</span>` + (r.title ? `<span>“${escapeHTML(r.title)}”</span>` : '') +
+        (r.simulation ? '<span class="replay-tag">SIMULATION · demo site</span>' : '');
+    document.getElementById('link-findings').innerHTML = (r.findings || []).map(f =>
+        `<li class="sev-${escapeHTML(f.severity)}"><b>${escapeHTML(f.severity)}</b>${escapeHTML(f.finding)}</li>`).join('') ||
+        `<li><b>${escapeHTML(r.verdict)}</b>${escapeHTML(r.reason || 'No warning signs on the page. That does not make it safe.')}</li>`;
+    document.getElementById('link-chain').innerHTML = (r.chain || []).length
+        ? 'Path: ' + r.chain.map(h => `<code>${escapeHTML(h.url)}</code> <small>${h.status} · ${escapeHTML(h.ip || '')}</small>`).join(' → ')
+        : '';
+    document.getElementById('link-ids').innerHTML = (r.identifiers || []).map(e =>
+        `<span style="color:${COLORS[e.type] || '#16130f'}">${escapeHTML(LABEL[e.type] || e.type)}: ${escapeHTML(e.value)}</span>`).join('');
+    document.getElementById('link-note').textContent =
+        (r.new_identifiers && r.new_identifiers.length ? `${plural(r.new_identifiers.length, 'new identifier')} from the page added to this case. ` : '') +
+        'Opened by the sandbox, never by the decoy: no JavaScript run, no form submitted, downloads only hashed.' +
+        (r.sha256 ? ` Page SHA-256 ${r.sha256.slice(0, 16)}…` : '');
+    document.getElementById('link-panel').hidden = false;
+    document.getElementById('link-close').focus();
+}
+document.getElementById('link-close').onclick = () => { document.getElementById('link-panel').hidden = true; };
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.getElementById('link-panel').hidden = true; });

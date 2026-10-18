@@ -120,6 +120,9 @@ def complaint(s: Session, g: Graph, analysis: dict, seal: dict, source: dict) ->
                      "seal": "verified" if seal.get("ok") else "BROKEN", "seal_head": (seal.get("head") or "")[:32],
                      "red_flags": analysis.get("flags", []), "risk": analysis.get("level")},
         "scammer_messages": [{"time_utc": m.ts, "text": m.text} for m in scam_msgs],
+        "link_analysis": [{"url": u, "verdict": r.get("verdict"), "final_url": r.get("final_url"), "ip": r.get("ip"),
+                           "findings": [f["finding"] for f in r.get("findings", [])], "checked_at": r.get("checked_at"),
+                           "simulation": r.get("simulation")} for u, r in source.get("links", {}).items()],
         "note": "Identifiers are machine-extracted. Verify before legal action.",
     }
 
@@ -167,6 +170,7 @@ code{{font-family:Consolas,monospace;font-size:12px;word-break:break-all}}
 <h2>Description</h2><p class="desc">{e(c['description'])}</p>
 {f"<h2>Linked cases</h2><p>Gang {e(linked['campaign'].upper())}: {e(', '.join(linked['case_ids']))}</p>" if linked else ''}
 <h2>Scammer's messages</h2><ol>{msgs}</ol>
+{_links_html(c.get('link_analysis') or [])}
 <h2>Evidence integrity</h2>
 <table>
 <tr><th>Case</th><td>{e(ev['case_id'])} · {ev['messages']} message{'' if ev['messages'] == 1 else 's'} · risk {e(str(ev['risk']))}</td></tr>
@@ -176,6 +180,15 @@ code{{font-family:Consolas,monospace;font-size:12px;word-break:break-all}}
 </table>
 <p class="sub">{e(c['note'])}</p>
 </main></body></html>"""
+
+
+def _links_html(links: list[dict]) -> str:
+    if not links:
+        return ""
+    e = html.escape
+    rows = "".join(f"<tr><th>{e(l['url'])}</th><td><b>{e(l['verdict'] or '')}</b>{' (simulation)' if l.get('simulation') else ''}"
+                   f"<br>{'<br>'.join(e(f) for f in l['findings']) or 'no findings'}</td></tr>" for l in links)
+    return f"<h2>Link analysis (sandbox)</h2><table>{rows}</table>"
 
 
 # ---------------------------------------------------------------------------- bank alert
